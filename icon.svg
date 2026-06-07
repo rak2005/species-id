@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4a7c2f"/>
+      <stop offset="1" stop-color="#2d5016"/>
+    </linearGradient>
+    <linearGradient id="leaf" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#9ed16b"/>
+      <stop offset="1" stop-color="#5a9a32"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Rounded background -->
+  <rect x="0" y="0" width="512" height="512" rx="112" fill="url(#bg)"/>
+
+  <!-- Magnifier lens area -->
+  <g transform="translate(196 196)">
+    <!-- Lens circle -->
+    <circle cx="0" cy="0" r="132" fill="#f5f0e8"/>
+    <circle cx="0" cy="0" r="132" fill="none" stroke="#e8dcc8" stroke-width="6"/>
+
+    <!-- Leaf inside lens -->
+    <g transform="translate(0 4)">
+      <path d="M -8 70
+               C -78 50, -88 -40, -2 -78
+               C 84 -40, 74 50, 4 70
+               C 2 30, 2 -10, 0 -50
+               C -2 -10, -6 30, -8 70 Z"
+            fill="url(#leaf)"/>
+      <!-- Midrib -->
+      <path d="M 0 64 C -2 10, -2 -28, -1 -66" fill="none" stroke="#2d5016" stroke-width="5" stroke-linecap="round" opacity="0.55"/>
+      <!-- Veins -->
+      <g fill="none" stroke="#2d5016" stroke-width="3.5" stroke-linecap="round" opacity="0.45">
+        <path d="M -1 -30 C -22 -32, -34 -22, -44 -6"/>
+        <path d="M 0 -30 C 21 -32, 33 -22, 43 -6"/>
+        <path d="M -1 4 C -24 2, -38 12, -48 30"/>
+        <path d="M 0 4 C 23 2, 37 12, 47 30"/>
+      </g>
+    </g>
+  </g>
+
+  <!-- Magnifier handle -->
+  <rect x="300" y="300" width="150" height="52" rx="26"
+        transform="rotate(45 300 300)"
+        fill="#c9b99a" stroke="#6b4226" stroke-width="8"/>
+</svg>

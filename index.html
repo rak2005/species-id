@@ -1,0 +1,3051 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Species Identifier</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cdefs%3E%3ClinearGradient id='b' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%234a7c2f'/%3E%3Cstop offset='1' stop-color='%232d5016'/%3E%3C/linearGradient%3E%3ClinearGradient id='l' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%239ed16b'/%3E%3Cstop offset='1' stop-color='%235a9a32'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='512' height='512' rx='112' fill='url(%23b)'/%3E%3Cg transform='translate(196 196)'%3E%3Ccircle r='132' fill='%23f5f0e8'/%3E%3Cpath d='M -8 74 C -78 54 -88 -36 -2 -74 C 84 -36 74 54 4 74 C 2 34 2 -6 0 -46 C -2 -6 -6 34 -8 74 Z' fill='url(%23l)' transform='translate(0 4)'/%3E%3C/g%3E%3Crect x='300' y='300' width='150' height='52' rx='26' transform='rotate(45 300 300)' fill='%23c9b99a' stroke='%236b4226' stroke-width='8'/%3E%3C/svg%3E" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="theme-color" content="#2d5016" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Species ID" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green-dark:  #2d5016;
+      --green-mid:   #4a7c2f;
+      --green-light: #7db356;
+      --tan:         #e8dcc8;
+      --tan-dark:    #c9b99a;
+      --brown:       #6b4226;
+      --cream:       #f5f0e8;
+      --text:        #2a1f0e;
+      --text-muted:  #6b5a42;
+    }
+
+    body {
+      font-family: Georgia, 'Times New Roman', serif;
+      background: var(--cream);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: linear-gradient(135deg, var(--green-dark) 0%, var(--green-mid) 100%);
+      padding: 24px 20px 20px;
+      text-align: center;
+      border-bottom: 4px solid var(--brown);
+    }
+    header h1 {
+      font-size: 2rem;
+      color: var(--tan);
+      letter-spacing: 0.04em;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.4);
+    }
+    header p {
+      color: var(--green-light);
+      font-style: italic;
+      margin-top: 4px;
+      font-size: 0.95rem;
+    }
+    .leaf { font-size: 1.6rem; margin: 0 6px; }
+
+    /* ── Main layout ── */
+    main {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 28px 16px 60px;
+    }
+
+    /* ── API key section ── */
+    #key-section {
+      background: white;
+      border: 1px solid var(--tan-dark);
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    #key-section label {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+    #api-key-input {
+      flex: 1;
+      min-width: 200px;
+      border: 1px solid var(--tan-dark);
+      border-radius: 6px;
+      padding: 7px 10px;
+      font-family: monospace;
+      font-size: 0.85rem;
+      background: var(--cream);
+      color: var(--text);
+    }
+    #api-key-input:focus { outline: 2px solid var(--green-mid); }
+    #save-key-btn {
+      background: var(--green-mid);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 7px 14px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      white-space: nowrap;
+    }
+    #save-key-btn:hover { background: var(--green-dark); }
+    #key-status {
+      font-size: 0.8rem;
+      color: var(--green-mid);
+      width: 100%;
+    }
+
+    /* ── Drop zone ── */
+    #drop-zone {
+      border: 3px dashed var(--tan-dark);
+      border-radius: 16px;
+      background: white;
+      padding: 40px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+    }
+    #drop-zone:hover, #drop-zone.drag-over {
+      border-color: var(--green-mid);
+      background: #f0f7e8;
+    }
+    #drop-zone input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+    .drop-icon { font-size: 3rem; margin-bottom: 10px; }
+    .drop-text { color: var(--text-muted); font-size: 1rem; }
+    .drop-text strong { color: var(--green-mid); }
+    .drop-hint { font-size: 0.8rem; color: var(--tan-dark); margin-top: 6px; font-style: italic; }
+
+    /* ── Preview ── */
+    #preview-wrap {
+      display: none;
+      margin-top: 20px;
+      text-align: center;
+    }
+    #preview-img {
+      max-width: 100%;
+      max-height: 380px;
+      border-radius: 12px;
+      border: 3px solid var(--tan-dark);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+      object-fit: contain;
+    }
+    #identify-btn {
+      display: block;
+      margin: 16px auto 0;
+      background: linear-gradient(135deg, var(--green-mid), var(--green-dark));
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 13px 36px;
+      font-size: 1.1rem;
+      font-family: Georgia, serif;
+      cursor: pointer;
+      letter-spacing: 0.03em;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    #identify-btn:hover { transform: translateY(-1px); box-shadow: 0 5px 14px rgba(0,0,0,0.25); }
+    #identify-btn:active { transform: translateY(0); }
+    #identify-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+    #clear-btn {
+      background: none;
+      border: 1px solid var(--tan-dark);
+      color: var(--text-muted);
+      border-radius: 8px;
+      padding: 6px 14px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      margin-top: 8px;
+      display: block;
+      margin-left: auto; margin-right: auto;
+    }
+    #clear-btn:hover { border-color: var(--brown); color: var(--brown); }
+
+    /* ── Loading ── */
+    #loading {
+      display: none;
+      text-align: center;
+      padding: 30px;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+    .spinner {
+      display: inline-block;
+      width: 36px; height: 36px;
+      border: 4px solid var(--tan-dark);
+      border-top-color: var(--green-mid);
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+      margin-bottom: 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Result card ── */
+    #result-card {
+      display: none;
+      margin-top: 28px;
+      background: white;
+      border: 1px solid var(--tan-dark);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    .card-header {
+      background: linear-gradient(135deg, var(--green-dark), var(--green-mid));
+      padding: 18px 24px;
+      color: var(--tan);
+    }
+    .card-header .category-badge {
+      display: inline-block;
+      background: rgba(255,255,255,0.2);
+      border-radius: 20px;
+      padding: 2px 12px;
+      font-size: 0.75rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .card-header h2 {
+      font-size: 1.7rem;
+      line-height: 1.2;
+    }
+    .card-header .scientific {
+      font-style: italic;
+      color: var(--green-light);
+      font-size: 1rem;
+      margin-top: 3px;
+    }
+    .card-body { padding: 22px 24px; }
+    .section {
+      margin-bottom: 22px;
+    }
+    .section:last-child { margin-bottom: 0; }
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--tan);
+      padding-bottom: 6px;
+      margin-bottom: 10px;
+    }
+    .section-icon { font-size: 1rem; }
+    .section p, .section ul {
+      font-size: 0.97rem;
+      line-height: 1.65;
+      color: var(--text);
+    }
+    .section ul {
+      padding-left: 18px;
+    }
+    .section ul li { margin-bottom: 4px; }
+
+    /* ── Did You Know cards ── */
+    .fun-facts-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 2px;
+    }
+    .fun-fact-card {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      background: linear-gradient(135deg, #f0f7e8, #e8f5d8);
+      border: 1px solid #c5dfa8;
+      border-radius: 10px;
+      padding: 12px 14px;
+    }
+    .fun-fact-emoji {
+      font-size: 1.4rem;
+      line-height: 1;
+      margin-top: 1px;
+      flex-shrink: 0;
+    }
+    .fun-fact-text {
+      font-size: 0.93rem;
+      line-height: 1.6;
+      color: var(--text);
+    }
+    .confidence-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 14px;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+    .bar-bg {
+      flex: 1;
+      height: 7px;
+      background: var(--tan);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--green-light), var(--green-dark));
+      border-radius: 4px;
+      transition: width 0.6s ease;
+    }
+
+    /* ── History ── */
+    #history-section {
+      margin-top: 48px;
+    }
+    .history-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .history-header h2 {
+      font-size: 1.1rem;
+      color: var(--green-dark);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    #clear-history-btn {
+      background: none;
+      border: 1px solid var(--tan-dark);
+      color: var(--text-muted);
+      border-radius: 6px;
+      padding: 5px 12px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      font-family: Georgia, serif;
+    }
+    #clear-history-btn:hover { border-color: var(--brown); color: var(--brown); }
+    #history-empty {
+      text-align: center;
+      color: var(--text-muted);
+      font-style: italic;
+      font-size: 0.9rem;
+      padding: 24px;
+      background: white;
+      border: 1px dashed var(--tan-dark);
+      border-radius: 12px;
+    }
+    #history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .history-item {
+      display: flex;
+      gap: 14px;
+      background: white;
+      border: 1px solid var(--tan-dark);
+      border-radius: 12px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: box-shadow 0.15s, border-color 0.15s;
+    }
+    .history-item:hover {
+      border-color: var(--green-mid);
+      box-shadow: 0 3px 12px rgba(0,0,0,0.1);
+    }
+    .history-thumb {
+      width: 80px;
+      min-width: 80px;
+      height: 80px;
+      object-fit: cover;
+      background: var(--tan);
+    }
+    .history-info {
+      padding: 10px 14px 10px 0;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 3px;
+    }
+    .history-name {
+      font-size: 1rem;
+      font-weight: bold;
+      color: var(--text);
+    }
+    .history-scientific {
+      font-style: italic;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+    .history-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 4px;
+    }
+    .history-badge {
+      background: var(--tan);
+      color: var(--brown);
+      border-radius: 20px;
+      padding: 1px 9px;
+      font-size: 0.72rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .history-date {
+      font-size: 0.75rem;
+      color: var(--tan-dark);
+    }
+    .history-delete {
+      background: none;
+      border: none;
+      color: var(--tan-dark);
+      font-size: 1rem;
+      cursor: pointer;
+      padding: 0 14px;
+      align-self: center;
+      line-height: 1;
+    }
+    .history-delete:hover { color: #c0392b; }
+
+    /* ── Modal overlay ── */
+    #modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    #modal-overlay.open { display: flex; }
+    #modal-box {
+      background: white;
+      border-radius: 16px;
+      max-width: 680px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.3);
+    }
+    #modal-box .card-header { border-radius: 16px 16px 0 0; }
+    #modal-img-wrap {
+      text-align: center;
+      background: var(--tan);
+      padding: 16px;
+    }
+    #modal-img {
+      max-width: 100%;
+      max-height: 320px;
+      object-fit: contain;
+      border-radius: 8px;
+    }
+    #modal-close {
+      position: sticky;
+      top: 10px;
+      float: right;
+      margin: 10px 10px 0 0;
+      background: rgba(255,255,255,0.85);
+      border: none;
+      border-radius: 50%;
+      width: 32px; height: 32px;
+      font-size: 1.1rem;
+      cursor: pointer;
+      z-index: 10;
+      display: flex; align-items: center; justify-content: center;
+    }
+    #modal-close:hover { background: white; }
+
+    /* ── Error ── */
+    #error-box {
+      display: none;
+      margin-top: 20px;
+      background: #fff5f5;
+      border: 1px solid #e8b4b4;
+      border-radius: 10px;
+      padding: 16px 20px;
+      color: #8b2020;
+      font-size: 0.95rem;
+    }
+
+    /* ── Plant Care ── */
+    .plant-care-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    @media (max-width: 480px) { .plant-care-grid { grid-template-columns: 1fr; } }
+    .care-card {
+      background: #f4faf0;
+      border: 1px solid #c5dfa8;
+      border-radius: 10px;
+      padding: 11px 13px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .care-card.full-width { grid-column: 1 / -1; }
+    .care-card-label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      color: var(--green-dark);
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .care-card-value {
+      font-size: 0.9rem;
+      line-height: 1.55;
+      color: var(--text);
+    }
+    .care-toxicity {
+      background: #fff8f0;
+      border-color: #f0c080;
+    }
+    .care-toxicity .care-card-label { color: #7a4a00; }
+    .care-tips {
+      background: #f0f7e8;
+      border-color: #a8d080;
+    }
+    .care-tips ul {
+      padding-left: 16px;
+      margin: 0;
+    }
+    .care-tips ul li {
+      font-size: 0.9rem;
+      line-height: 1.55;
+      color: var(--text);
+      margin-bottom: 3px;
+    }
+
+    /* ── Part identification banner ── */
+    .part-banner {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      background: linear-gradient(135deg, #fdf6e3, #f7ecc8);
+      border: 1px solid #e0c97a;
+      border-radius: 10px;
+      padding: 12px 15px;
+      margin-bottom: 20px;
+    }
+    .part-banner-icon { font-size: 1.5rem; line-height: 1; flex-shrink: 0; margin-top: 1px; }
+    .part-banner-title {
+      font-size: 0.95rem;
+      font-weight: bold;
+      color: #6b5212;
+    }
+    .part-banner-title span { text-transform: lowercase; }
+    .part-banner-desc {
+      font-size: 0.88rem;
+      line-height: 1.55;
+      color: var(--text-muted);
+      margin-top: 3px;
+    }
+
+    /* ── Safety banner ── */
+    .safety-banner {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      border-radius: 10px;
+      padding: 12px 15px;
+      margin-bottom: 20px;
+      border: 1px solid;
+    }
+    .safety-icon { font-size: 1.5rem; line-height: 1; flex-shrink: 0; margin-top: 1px; }
+    .safety-title { font-size: 0.95rem; font-weight: bold; }
+    .safety-text { font-size: 0.88rem; line-height: 1.55; margin-top: 3px; }
+    .safety-harmless { background: #eef7e8; border-color: #a8d080; }
+    .safety-harmless .safety-title { color: #2d5016; }
+    .safety-harmless .safety-text { color: #4a6030; }
+    .safety-caution { background: #fff6e5; border-color: #e8b54a; }
+    .safety-caution .safety-title { color: #8a5a00; }
+    .safety-caution .safety-text { color: #7a5510; }
+    .safety-dangerous { background: #fdecec; border-color: #e08080; }
+    .safety-dangerous .safety-title { color: #9a1c1c; }
+    .safety-dangerous .safety-text { color: #7a2020; }
+
+    /* ── Top candidates ── */
+    .candidates-grid { display: flex; flex-direction: column; gap: 8px; }
+    .candidate-card {
+      display: flex; align-items: center; gap: 12px;
+      background: white; border: 1px solid var(--tan-dark);
+      border-radius: 10px; padding: 10px 13px;
+    }
+    .candidate-card.top { border-color: var(--green-mid); background: #f0f7e8; }
+    .candidate-rank {
+      font-size: 0.95rem; font-weight: bold; color: var(--green-dark);
+      width: 22px; text-align: center; flex-shrink: 0;
+    }
+    .candidate-info { flex: 1; min-width: 0; }
+    .candidate-name { font-size: 0.95rem; font-weight: bold; color: var(--text); }
+    .candidate-reason { font-size: 0.8rem; color: var(--text-muted); line-height: 1.45; margin-top: 1px; }
+    .candidate-conf {
+      flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; width: 84px;
+    }
+    .candidate-conf-label { font-size: 0.78rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+    .candidate-bar-bg { width: 100%; height: 6px; background: var(--tan); border-radius: 3px; overflow: hidden; }
+    .candidate-bar-fill { height: 100%; background: linear-gradient(90deg, var(--green-light), var(--green-dark)); border-radius: 3px; }
+
+    /* ── Similar species ── */
+    .similar-grid { display: flex; flex-direction: column; gap: 8px; }
+    .similar-card {
+      background: #f6f3ee;
+      border: 1px solid var(--tan-dark);
+      border-radius: 10px;
+      padding: 10px 13px;
+    }
+    .similar-name {
+      font-weight: bold;
+      font-size: 0.92rem;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .similar-name::before { content: "↔"; color: var(--green-mid); }
+    .similar-diff { font-size: 0.86rem; line-height: 1.5; color: var(--text-muted); margin-top: 3px; }
+
+    /* ── Copy/Share buttons ── */
+    .card-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid var(--tan);
+    }
+    .action-btn {
+      flex: 1;
+      background: white;
+      border: 1px solid var(--tan-dark);
+      color: var(--green-dark);
+      border-radius: 8px;
+      padding: 9px 14px;
+      font-size: 0.9rem;
+      font-family: Georgia, serif;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .action-btn:hover { background: #f0f7e8; border-color: var(--green-mid); }
+    .action-btn.copied { background: #e8f5d8; border-color: var(--green-mid); color: var(--green-dark); }
+
+    /* ── Location ── */
+    .history-location {
+      font-size: 0.74rem;
+      color: var(--green-mid);
+      margin-top: 2px;
+    }
+    #map-section { margin-top: 32px; display: none; }
+    #map-section h2 {
+      font-size: 1.1rem;
+      color: var(--green-dark);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    #map {
+      height: 320px;
+      border-radius: 12px;
+      border: 1px solid var(--tan-dark);
+      overflow: hidden;
+      z-index: 1;
+    }
+    .leaflet-popup-content { font-family: Georgia, serif; }
+    .map-popup-name { font-weight: bold; color: var(--green-dark); }
+    .map-popup-sci { font-style: italic; font-size: 0.85em; color: var(--text-muted); }
+
+    /* ── Pronunciation ── */
+    .pronunciation-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 6px;
+    }
+    .pronunciation-row span {
+      color: var(--green-light);
+      font-size: 0.88rem;
+      font-style: italic;
+    }
+    .pron-btn {
+      background: rgba(255,255,255,0.2);
+      border: none;
+      border-radius: 50%;
+      width: 26px; height: 26px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .pron-btn:hover { background: rgba(255,255,255,0.35); }
+
+    /* ── Chips row (conservation, rarity) ── */
+    .chips-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 0.8rem;
+      border: 1px solid;
+    }
+    .chip-label { opacity: 0.75; }
+    .chip-cons-lc  { background: #eef7e8; border-color: #a8d080; color: #2d5016; }
+    .chip-cons-nt  { background: #f3f7e0; border-color: #c8d870; color: #5a6010; }
+    .chip-cons-vu  { background: #fff6e5; border-color: #e8c84a; color: #8a6a00; }
+    .chip-cons-en  { background: #ffeede; border-color: #e8a04a; color: #8a4a00; }
+    .chip-cons-cr  { background: #fdecec; border-color: #e08080; color: #9a1c1c; }
+    .chip-cons-ew  { background: #f0e0e0; border-color: #b06060; color: #6a1010; }
+    .chip-cons-na  { background: #f0f0f0; border-color: #c0c0c0; color: #555; }
+    .chip-rarity   { background: #eef0f7; border-color: #a8b0d0; color: #3a4470; }
+
+    /* ── Stats dashboard ── */
+    #stats-section { margin-top: 32px; }
+    #stats-section h2 {
+      font-size: 1.1rem; color: var(--green-dark);
+      display: flex; align-items: center; gap: 8px; margin-bottom: 14px;
+    }
+    #stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 12px;
+    }
+    .stat-card {
+      background: white;
+      border: 1px solid var(--tan-dark);
+      border-radius: 12px;
+      padding: 14px 16px;
+      text-align: center;
+    }
+    .stat-value { font-size: 1.6rem; font-weight: bold; color: var(--green-mid); }
+    .stat-label { font-size: 0.78rem; color: var(--text-muted); margin-top: 3px; }
+    .stat-card.wide { grid-column: 1 / -1; text-align: left; }
+    .stat-breakdown { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+    .stat-cat { font-size: 0.78rem; background: var(--tan); color: var(--brown); border-radius: 14px; padding: 2px 10px; }
+
+    /* ── History header buttons & compare ── */
+    .history-header-btns { display: flex; gap: 8px; }
+    #compare-btn {
+      background: none; border: 1px solid var(--tan-dark); color: var(--text-muted);
+      border-radius: 6px; padding: 5px 12px; font-size: 0.8rem; cursor: pointer; font-family: Georgia, serif;
+    }
+    #compare-btn:hover { border-color: var(--green-mid); color: var(--green-dark); }
+    #compare-btn.active { background: var(--green-mid); color: white; border-color: var(--green-mid); }
+    #compare-hint {
+      background: #f0f7e8; border: 1px solid #c5dfa8; border-radius: 10px;
+      padding: 10px 14px; margin-bottom: 14px; font-size: 0.85rem; color: var(--text);
+    }
+    #compare-hint button {
+      background: var(--green-mid); color: white; border: none; border-radius: 6px;
+      padding: 4px 12px; font-size: 0.8rem; cursor: pointer; margin-left: 4px; font-family: Georgia, serif;
+    }
+    #compare-hint button:disabled { opacity: 0.5; cursor: not-allowed; }
+    #compare-cancel-btn { background: none !important; color: var(--text-muted) !important; border: 1px solid var(--tan-dark) !important; }
+    .history-item.compare-selectable { cursor: pointer; }
+    .history-item.compare-selected { border-color: var(--green-mid); box-shadow: 0 0 0 2px var(--green-mid); }
+
+    /* ── Comparison modal ── */
+    #compare-overlay, #audio-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7); z-index: 300;
+      align-items: center; justify-content: center; padding: 16px;
+    }
+    #compare-overlay.open, #audio-overlay.open { display: flex; }
+    #compare-box {
+      background: var(--cream); border-radius: 16px;
+      max-width: 760px; width: 100%; max-height: 90vh; overflow-y: auto;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+    }
+    #compare-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+    }
+    .compare-col { padding: 16px; border-right: 1px solid var(--tan); }
+    .compare-col:last-child { border-right: none; }
+    .compare-col img { width: 100%; height: 150px; object-fit: cover; border-radius: 10px; margin-bottom: 10px; }
+    .compare-col h3 { font-size: 1.1rem; color: var(--green-dark); }
+    .compare-col .compare-sci { font-style: italic; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; }
+    .compare-field { margin-bottom: 10px; }
+    .compare-field-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); }
+    .compare-field-value { font-size: 0.88rem; line-height: 1.5; color: var(--text); }
+
+    /* ── Audio modal ── */
+    #audio-box {
+      background: var(--cream); border-radius: 16px;
+      max-width: 460px; width: 100%; overflow: hidden;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+      display: flex; flex-direction: column;
+    }
+    #audio-box .drawer-header { border-radius: 0; }
+    #audio-stage { padding: 30px 24px; text-align: center; }
+    #audio-visual { font-size: 3rem; }
+    #audio-visual.recording { animation: pulse 1s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:0.5;transform:scale(1.15);} }
+    #audio-status { color: var(--text-muted); font-size: 0.92rem; margin-top: 14px; line-height: 1.5; }
+    #audio-timer { font-size: 1.4rem; color: var(--green-dark); margin-top: 12px; font-variant-numeric: tabular-nums; }
+    #audio-error { color: #9a1c1c; font-size: 0.88rem; margin-top: 12px; }
+    #audio-controls { display: flex; gap: 12px; justify-content: center; padding: 16px; flex-wrap: wrap; }
+    #audio-record-btn {
+      background: #c0392b; color: white; border: none; border-radius: 10px;
+      padding: 12px 28px; font-size: 1rem; font-family: Georgia, serif; cursor: pointer;
+    }
+    #audio-record-btn.recording { background: #7a2020; }
+    #audio-identify-btn {
+      background: linear-gradient(135deg, var(--green-mid), var(--green-dark)); color: white;
+      border: none; border-radius: 10px; padding: 12px 28px; font-size: 1rem; font-family: Georgia, serif; cursor: pointer;
+    }
+    #audio-redo-btn {
+      background: white; border: 1px solid var(--tan-dark); color: var(--text-muted);
+      border-radius: 10px; padding: 12px 20px; font-size: 0.95rem; font-family: Georgia, serif; cursor: pointer;
+    }
+    #open-audio-btn {
+      background: white; border: 2px solid var(--green-mid); color: var(--green-dark);
+      border-radius: 10px; padding: 10px 18px; font-size: 0.95rem; font-family: Georgia, serif; cursor: pointer;
+    }
+    #open-audio-btn:hover { background: #f0f7e8; }
+    @media (max-width: 480px) { #compare-grid { grid-template-columns: 1fr; } .compare-col { border-right: none; border-bottom: 1px solid var(--tan); } }
+
+    /* ── Multi-photo thumbnail strip ── */
+    #thumb-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 14px;
+    }
+    .thumb {
+      position: relative;
+      width: 120px;
+      height: 120px;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 2px solid var(--tan-dark);
+      background: var(--tan);
+    }
+    .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .thumb-btns {
+      position: absolute;
+      top: 4px; right: 4px;
+      display: flex;
+      gap: 4px;
+    }
+    .thumb-btn {
+      background: rgba(0,0,0,0.55);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      width: 26px; height: 26px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      line-height: 1;
+    }
+    .thumb-btn:hover { background: rgba(0,0,0,0.8); }
+    #add-more-btn {
+      display: block;
+      margin: 0 auto 16px;
+      background: white;
+      border: 1px dashed var(--green-mid);
+      color: var(--green-dark);
+      border-radius: 8px;
+      padding: 8px 18px;
+      font-size: 0.9rem;
+      font-family: Georgia, serif;
+      cursor: pointer;
+    }
+    #add-more-btn:hover { background: #f0f7e8; }
+
+    /* ── Seasonal accent (warm) ── */
+    .seasonal-grid .care-card { background: #fdf4e8; border-color: #e8c89a; }
+    .seasonal-grid .care-card-label { color: #8a5a1a; }
+
+    /* ── Crop modal ── */
+    #crop-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.8);
+      z-index: 300;
+      align-items: center; justify-content: center;
+      padding: 16px;
+    }
+    #crop-overlay.open { display: flex; }
+    #crop-box {
+      background: var(--cream);
+      border-radius: 16px;
+      max-width: 640px; width: 100%;
+      overflow: hidden;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+      display: flex; flex-direction: column;
+    }
+    #crop-box .drawer-header { border-radius: 0; }
+    #crop-stage {
+      position: relative;
+      background: #000;
+      display: flex; align-items: center; justify-content: center;
+      max-height: 70vh;
+      overflow: hidden;
+      user-select: none;
+      touch-action: none;
+    }
+    #crop-image { max-width: 100%; max-height: 70vh; display: block; pointer-events: none; }
+    #crop-selection {
+      position: absolute;
+      border: 2px dashed #fff;
+      box-shadow: 0 0 0 9999px rgba(0,0,0,0.5);
+      display: none;
+      pointer-events: none;
+    }
+    #crop-hint {
+      text-align: center;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      font-style: italic;
+      padding: 10px 16px 0;
+    }
+    #crop-controls {
+      display: flex; gap: 12px; justify-content: center;
+      padding: 16px;
+    }
+    #crop-apply-btn {
+      background: linear-gradient(135deg, var(--green-mid), var(--green-dark));
+      color: white; border: none; border-radius: 10px;
+      padding: 11px 28px; font-size: 1rem; font-family: Georgia, serif; cursor: pointer;
+    }
+    #crop-reset-btn {
+      background: white; border: 1px solid var(--tan-dark); color: var(--text-muted);
+      border-radius: 10px; padding: 11px 20px; font-size: 0.95rem; font-family: Georgia, serif; cursor: pointer;
+    }
+    #crop-reset-btn:hover { border-color: var(--brown); color: var(--brown); }
+
+    /* ── Take Photo button ── */
+    #camera-launch-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .or-divider {
+      color: var(--tan-dark);
+      font-style: italic;
+      font-size: 0.9rem;
+    }
+    #open-camera-btn {
+      background: white;
+      border: 2px solid var(--green-mid);
+      color: var(--green-dark);
+      border-radius: 10px;
+      padding: 10px 22px;
+      font-size: 1rem;
+      font-family: Georgia, serif;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+    }
+    #open-camera-btn:hover { background: #f0f7e8; transform: translateY(-1px); }
+    #open-camera-btn:active { transform: translateY(0); }
+
+    /* ── Camera modal ── */
+    #camera-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.8);
+      z-index: 300;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    #camera-overlay.open { display: flex; }
+    #camera-box {
+      background: var(--cream);
+      border-radius: 16px;
+      max-width: 640px;
+      width: 100%;
+      overflow: hidden;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+      display: flex;
+      flex-direction: column;
+    }
+    #camera-box .drawer-header { border-radius: 0; }
+    #camera-stage {
+      position: relative;
+      background: #000;
+      min-height: 300px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #camera-video {
+      width: 100%;
+      max-height: 70vh;
+      display: block;
+      object-fit: contain;
+    }
+    #camera-error {
+      display: none;
+      color: #ffd9d9;
+      padding: 40px 24px;
+      text-align: center;
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+    #camera-controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      padding: 18px;
+      background: var(--cream);
+    }
+    #capture-btn {
+      background: linear-gradient(135deg, var(--green-mid), var(--green-dark));
+      color: white;
+      border: none;
+      border-radius: 12px;
+      padding: 14px 40px;
+      font-size: 1.15rem;
+      font-family: Georgia, serif;
+      cursor: pointer;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+    }
+    #capture-btn:hover { transform: translateY(-1px); }
+    #capture-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    #flip-camera-btn {
+      background: white;
+      border: 1px solid var(--tan-dark);
+      color: var(--text-muted);
+      border-radius: 10px;
+      padding: 12px 18px;
+      font-size: 0.95rem;
+      font-family: Georgia, serif;
+      cursor: pointer;
+    }
+    #flip-camera-btn:hover { border-color: var(--green-mid); color: var(--green-dark); }
+
+    /* ── Geology cards (stone-grey accent) ── */
+    .geology-grid .care-card {
+      background: #f1f2f4;
+      border-color: #c8ccd2;
+    }
+    .geology-grid .care-card-label { color: #4a5560; }
+
+    /* ── Settings button in header ── */
+    #settings-btn {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.3);
+      color: var(--tan);
+      border-radius: 8px;
+      padding: 7px 12px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    #settings-btn:hover { background: rgba(255,255,255,0.25); }
+    header { position: relative; }
+
+    /* ── Settings drawer ── */
+    #settings-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 200;
+    }
+    #settings-overlay.open { display: block; }
+    #settings-drawer {
+      position: fixed;
+      top: 0; right: 0;
+      width: 320px;
+      max-width: 92vw;
+      height: 100%;
+      background: var(--cream);
+      box-shadow: -4px 0 24px rgba(0,0,0,0.2);
+      z-index: 201;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(100%);
+      transition: transform 0.25s ease;
+    }
+    #settings-overlay.open #settings-drawer {
+      transform: translateX(0);
+    }
+    .drawer-header {
+      background: linear-gradient(135deg, var(--green-dark), var(--green-mid));
+      padding: 18px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--tan);
+    }
+    .drawer-header h2 { font-size: 1.1rem; }
+    #settings-close {
+      background: none;
+      border: none;
+      color: var(--tan);
+      font-size: 1.3rem;
+      cursor: pointer;
+      line-height: 1;
+      opacity: 0.8;
+    }
+    #settings-close:hover { opacity: 1; }
+    .drawer-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+    .setting-group label.group-label {
+      display: block;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+    .setting-group p.group-hint {
+      font-size: 0.78rem;
+      color: var(--tan-dark);
+      font-style: italic;
+      margin-top: 8px;
+      line-height: 1.5;
+    }
+    .model-options {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .model-option {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      background: white;
+      border: 2px solid var(--tan-dark);
+      border-radius: 10px;
+      padding: 11px 14px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .model-option:hover { border-color: var(--green-light); }
+    .model-option.selected { border-color: var(--green-mid); background: #f0f7e8; }
+    .model-option input[type="radio"] { margin-top: 3px; accent-color: var(--green-mid); }
+    .model-option-info { flex: 1; }
+    .model-name { font-size: 0.9rem; font-weight: bold; color: var(--text); }
+    .model-desc { font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; line-height: 1.4; }
+    .model-tag {
+      font-size: 0.68rem;
+      padding: 1px 7px;
+      border-radius: 10px;
+      font-family: sans-serif;
+      white-space: nowrap;
+      margin-top: 4px;
+      display: inline-block;
+    }
+    .tag-free { background: #d4edda; color: #155724; }
+    .tag-pro  { background: #fff3cd; color: #856404; }
+
+    .limit-options {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .limit-btn {
+      background: white;
+      border: 2px solid var(--tan-dark);
+      border-radius: 8px;
+      padding: 7px 16px;
+      font-size: 0.9rem;
+      font-family: Georgia, serif;
+      cursor: pointer;
+      color: var(--text);
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .limit-btn:hover { border-color: var(--green-light); }
+    .limit-btn.selected { border-color: var(--green-mid); background: #f0f7e8; color: var(--green-dark); font-weight: bold; }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      padding: 16px;
+      font-size: 0.75rem;
+      color: var(--tan-dark);
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1><span class="leaf">🌿</span> Species Identifier <span class="leaf">🦎</span></h1>
+  <p>Photograph an animal, plant, or rock to learn its name, habitat &amp; habits</p>
+  <button id="settings-btn" title="Settings">⚙️ Settings</button>
+</header>
+
+<!-- Settings Drawer -->
+<div id="settings-overlay">
+  <div id="settings-drawer">
+    <div class="drawer-header">
+      <h2>⚙️ Settings</h2>
+      <button id="settings-close">✕</button>
+    </div>
+    <div class="drawer-body">
+
+      <!-- Model -->
+      <div class="setting-group">
+        <label class="group-label">Gemini Model</label>
+        <div class="model-options">
+          <label class="model-option" id="opt-flash">
+            <input type="radio" name="model" value="gemini-2.5-flash" />
+            <div class="model-option-info">
+              <div class="model-name">Gemini 2.5 Flash</div>
+              <div class="model-desc">Fast responses, great accuracy for most species.</div>
+              <span class="model-tag tag-free">Recommended</span>
+            </div>
+          </label>
+          <label class="model-option" id="opt-flash-lite">
+            <input type="radio" name="model" value="gemini-2.5-flash-lite" />
+            <div class="model-option-info">
+              <div class="model-name">Gemini 2.5 Flash Lite</div>
+              <div class="model-desc">Fastest & most efficient. Best for quick lookups.</div>
+              <span class="model-tag tag-free">Fastest</span>
+            </div>
+          </label>
+          <label class="model-option" id="opt-pro">
+            <input type="radio" name="model" value="gemini-2.5-pro" />
+            <div class="model-option-info">
+              <div class="model-name">Gemini 2.5 Pro</div>
+              <div class="model-desc">Most detailed results. Better for rare or tricky species.</div>
+              <span class="model-tag tag-pro">Highest quality</span>
+            </div>
+          </label>
+        </div>
+        <p class="group-hint">Gemini 2.0 Flash is recommended — it's free and accurate.</p>
+      </div>
+
+      <!-- History Limit -->
+      <div class="setting-group">
+        <label class="group-label">History Limit</label>
+        <div class="limit-options">
+          <button class="limit-btn" data-limit="10">10</button>
+          <button class="limit-btn" data-limit="25">25</button>
+          <button class="limit-btn" data-limit="50">50</button>
+          <button class="limit-btn" data-limit="100">100</button>
+          <button class="limit-btn" data-limit="0">Unlimited</button>
+        </div>
+        <p class="group-hint">Max saved identifications. Older ones are removed when the limit is reached. Images are stored in your browser.</p>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<main>
+
+  <!-- API Key -->
+  <div id="key-section">
+    <label for="api-key-input">Google Gemini API Key</label>
+    <input id="api-key-input" type="password" placeholder="Paste your Gemini API key" autocomplete="off" />
+    <button id="save-key-btn">Save</button>
+    <div id="key-status"></div>
+  </div>
+
+  <!-- Drop zone -->
+  <div id="drop-zone">
+    <input type="file" id="file-input" accept="image/*" multiple />
+    <div class="drop-icon">📷</div>
+    <div class="drop-text"><strong>Click or drag</strong> photos here</div>
+    <div class="drop-hint">Add several angles for a better ID — JPG, PNG, WEBP</div>
+  </div>
+
+  <!-- Take photo button -->
+  <div id="camera-launch-wrap">
+    <span class="or-divider">or</span>
+    <button id="open-camera-btn">📸 Take a Photo</button>
+    <button id="open-audio-btn">🎤 Identify a Bird by Sound</button>
+  </div>
+
+  <!-- Image preview -->
+  <div id="preview-wrap">
+    <div id="thumb-strip"></div>
+    <button id="add-more-btn">＋ Add another photo</button>
+    <input type="file" id="add-file-input" accept="image/*" multiple hidden />
+    <button id="identify-btn">🔍 Identify Species</button>
+    <button id="clear-btn">✕ Start over</button>
+  </div>
+
+  <!-- Loading -->
+  <div id="loading">
+    <div class="spinner"></div>
+    <div>Consulting the field guide…</div>
+  </div>
+
+  <!-- Error -->
+  <div id="error-box"></div>
+
+  <!-- Result -->
+  <div id="result-card">
+    <div class="card-header">
+      <div class="category-badge" id="res-category">Species</div>
+      <h2 id="res-common-name"></h2>
+      <div class="scientific" id="res-scientific"></div>
+      <div class="pronunciation-row" id="res-pron-row" style="display:none">
+        <span id="res-pron"></span>
+        <button class="pron-btn" id="res-pron-btn" title="Pronounce">🔊</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="chips-row" id="res-chips" style="display:none"></div>
+      <div class="part-banner" id="res-part-banner" style="display:none">
+        <span class="part-banner-icon">🧩</span>
+        <div>
+          <div class="part-banner-title">Identified from a <span id="res-part-name"></span></div>
+          <div class="part-banner-desc" id="res-part-desc"></div>
+        </div>
+      </div>
+      <div class="safety-banner" id="res-safety" style="display:none">
+        <span class="safety-icon" id="res-safety-icon"></span>
+        <div>
+          <div class="safety-title" id="res-safety-title"></div>
+          <div class="safety-text" id="res-safety-text"></div>
+        </div>
+      </div>
+      <div class="safety-banner" id="res-edibility" style="display:none">
+        <span class="safety-icon" id="res-edibility-icon"></span>
+        <div>
+          <div class="safety-title" id="res-edibility-title"></div>
+          <div class="safety-text" id="res-edibility-text"></div>
+        </div>
+      </div>
+      <div class="section">
+        <div class="section-title"><span class="section-icon">🗺️</span> Habitat</div>
+        <div id="res-habitat"></div>
+      </div>
+      <div class="section">
+        <div class="section-title"><span class="section-icon">🌀</span> Habits &amp; Behaviour</div>
+        <div id="res-habits"></div>
+      </div>
+      <div class="section">
+        <div class="section-title"><span class="section-icon">📋</span> Quick Facts</div>
+        <div id="res-facts"></div>
+      </div>
+      <div class="section" id="res-care-section" style="display:none">
+        <div class="section-title"><span class="section-icon">🪴</span> Plant Care</div>
+        <div id="res-care" class="plant-care-grid"></div>
+      </div>
+      <div class="section" id="res-geology-section" style="display:none">
+        <div class="section-title"><span class="section-icon">🪨</span> Geology</div>
+        <div id="res-geology" class="plant-care-grid geology-grid"></div>
+      </div>
+      <div class="section" id="res-seasonal-section" style="display:none">
+        <div class="section-title"><span class="section-icon">📅</span> Seasonal Info</div>
+        <div id="res-seasonal" class="plant-care-grid seasonal-grid"></div>
+      </div>
+      <div class="section" id="res-candidates-section" style="display:none">
+        <div class="section-title"><span class="section-icon">🎯</span> Top Candidates</div>
+        <div id="res-candidates" class="candidates-grid"></div>
+      </div>
+      <div class="section" id="res-similar-section" style="display:none">
+        <div class="section-title"><span class="section-icon">🔍</span> Similar Species</div>
+        <div id="res-similar" class="similar-grid"></div>
+      </div>
+      <div class="section" id="res-funfacts-section">
+        <div class="section-title"><span class="section-icon">✨</span> Did You Know?</div>
+        <div id="res-funfacts" class="fun-facts-grid"></div>
+      </div>
+      <div class="confidence-bar">
+        <span>Confidence</span>
+        <div class="bar-bg"><div class="bar-fill" id="conf-fill" style="width:0%"></div></div>
+        <span id="conf-label">—</span>
+      </div>
+      <div class="card-actions">
+        <button class="action-btn" id="copy-btn">📋 Copy</button>
+        <button class="action-btn" id="share-btn">🔗 Share</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Map -->
+  <div id="map-section">
+    <h2>🗺️ Where You Found Them</h2>
+    <div id="map"></div>
+  </div>
+
+  <!-- Stats dashboard -->
+  <div id="stats-section" style="display:none">
+    <h2>📊 Your Stats</h2>
+    <div id="stats-grid"></div>
+  </div>
+
+  <!-- History -->
+  <div id="history-section">
+    <div class="history-header">
+      <h2>📖 Past Identifications</h2>
+      <div class="history-header-btns">
+        <button id="compare-btn">⚖️ Compare</button>
+        <button id="clear-history-btn">Clear all</button>
+      </div>
+    </div>
+    <div id="compare-hint" style="display:none">Select two finds to compare, then tap “Compare selected”. <button id="compare-go-btn" disabled>Compare selected</button> <button id="compare-cancel-btn">Cancel</button></div>
+    <div id="history-empty">No identifications yet — results will appear here after you identify a species.</div>
+    <div id="history-list"></div>
+  </div>
+
+</main>
+
+<!-- Camera Modal -->
+<div id="camera-overlay">
+  <div id="camera-box">
+    <div class="drawer-header">
+      <h2>📸 Take a Photo</h2>
+      <button id="camera-close">✕</button>
+    </div>
+    <div id="camera-stage">
+      <video id="camera-video" autoplay playsinline></video>
+      <div id="camera-error"></div>
+    </div>
+    <div id="camera-controls">
+      <button id="flip-camera-btn" title="Switch camera">🔄 Flip</button>
+      <button id="capture-btn" title="Capture">📷 Capture</button>
+    </div>
+  </div>
+</div>
+
+<!-- Audio Modal -->
+<div id="audio-overlay">
+  <div id="audio-box">
+    <div class="drawer-header">
+      <h2>🎤 Identify a Bird by Sound</h2>
+      <button id="audio-close">✕</button>
+    </div>
+    <div id="audio-stage">
+      <div id="audio-visual">🐦</div>
+      <div id="audio-status">Tap record, then hold your phone toward the bird song.</div>
+      <div id="audio-timer" style="display:none">0:00</div>
+      <div id="audio-error" style="display:none"></div>
+    </div>
+    <div id="audio-controls">
+      <button id="audio-record-btn">● Record</button>
+      <button id="audio-identify-btn" style="display:none">🔍 Identify</button>
+      <button id="audio-redo-btn" style="display:none">↺ Redo</button>
+    </div>
+  </div>
+</div>
+
+<!-- Comparison Modal -->
+<div id="compare-overlay">
+  <div id="compare-box">
+    <div class="drawer-header">
+      <h2>⚖️ Compare</h2>
+      <button id="compare-close">✕</button>
+    </div>
+    <div id="compare-grid"></div>
+  </div>
+</div>
+
+<!-- Crop Modal -->
+<div id="crop-overlay">
+  <div id="crop-box">
+    <div class="drawer-header">
+      <h2>✂️ Crop &amp; Zoom</h2>
+      <button id="crop-close">✕</button>
+    </div>
+    <div id="crop-stage">
+      <img id="crop-image" alt="Crop source" />
+      <div id="crop-selection"></div>
+    </div>
+    <div id="crop-hint">Drag across the photo to select the area to zoom in on.</div>
+    <div id="crop-controls">
+      <button id="crop-reset-btn">↺ Reset</button>
+      <button id="crop-apply-btn">✓ Apply Crop</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div id="modal-overlay">
+  <div id="modal-box">
+    <button id="modal-close" title="Close">✕</button>
+    <div id="modal-img-wrap">
+      <img id="modal-img" src="" alt="" />
+    </div>
+    <div class="card-header">
+      <div class="category-badge" id="modal-category"></div>
+      <h2 id="modal-common-name"></h2>
+      <div class="scientific" id="modal-scientific"></div>
+      <div class="pronunciation-row" id="modal-pron-row" style="display:none">
+        <span id="modal-pron"></span>
+        <button class="pron-btn" id="modal-pron-btn" title="Pronounce">🔊</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="chips-row" id="modal-chips" style="display:none"></div>
+      <div class="part-banner" id="modal-part-banner" style="display:none">
+        <span class="part-banner-icon">🧩</span>
+        <div>
+          <div class="part-banner-title">Identified from a <span id="modal-part-name"></span></div>
+          <div class="part-banner-desc" id="modal-part-desc"></div>
+        </div>
+      </div>
+      <div class="safety-banner" id="modal-safety" style="display:none">
+        <span class="safety-icon" id="modal-safety-icon"></span>
+        <div>
+          <div class="safety-title" id="modal-safety-title"></div>
+          <div class="safety-text" id="modal-safety-text"></div>
+        </div>
+      </div>
+      <div class="safety-banner" id="modal-edibility" style="display:none">
+        <span class="safety-icon" id="modal-edibility-icon"></span>
+        <div>
+          <div class="safety-title" id="modal-edibility-title"></div>
+          <div class="safety-text" id="modal-edibility-text"></div>
+        </div>
+      </div>
+      <div class="section">
+        <div class="section-title"><span class="section-icon">🗺️</span> Habitat</div>
+        <div id="modal-habitat"></div>
+      </div>
+      <div class="section">
+        <div class="section-title"><span class="section-icon">🌀</span> Habits &amp; Behaviour</div>
+        <div id="modal-habits"></div>
+      </div>
+      <div class="section">
+        <div class="section-title"><span class="section-icon">📋</span> Quick Facts</div>
+        <div id="modal-facts"></div>
+      </div>
+      <div class="section" id="modal-care-section" style="display:none">
+        <div class="section-title"><span class="section-icon">🪴</span> Plant Care</div>
+        <div id="modal-care" class="plant-care-grid"></div>
+      </div>
+      <div class="section" id="modal-geology-section" style="display:none">
+        <div class="section-title"><span class="section-icon">🪨</span> Geology</div>
+        <div id="modal-geology" class="plant-care-grid geology-grid"></div>
+      </div>
+      <div class="section" id="modal-seasonal-section" style="display:none">
+        <div class="section-title"><span class="section-icon">📅</span> Seasonal Info</div>
+        <div id="modal-seasonal" class="plant-care-grid seasonal-grid"></div>
+      </div>
+      <div class="section" id="modal-candidates-section" style="display:none">
+        <div class="section-title"><span class="section-icon">🎯</span> Top Candidates</div>
+        <div id="modal-candidates" class="candidates-grid"></div>
+      </div>
+      <div class="section" id="modal-similar-section" style="display:none">
+        <div class="section-title"><span class="section-icon">🔍</span> Similar Species</div>
+        <div id="modal-similar" class="similar-grid"></div>
+      </div>
+      <div class="section" id="modal-funfacts-section">
+        <div class="section-title"><span class="section-icon">✨</span> Did You Know?</div>
+        <div id="modal-funfacts" class="fun-facts-grid"></div>
+      </div>
+      <div class="confidence-bar">
+        <span>Confidence</span>
+        <div class="bar-bg"><div class="bar-fill" id="modal-conf-fill" style="width:0%"></div></div>
+        <span id="modal-conf-label">—</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>Powered by Google Gemini · Identifications are informational only · Always verify with local experts</footer>
+
+<script>
+  // ── State ──
+  let images = [];            // [{ dataUrl, base64, mime }]
+  let currentResult = null;   // last identified result (for copy/share)
+  let mapInstance = null;     // Leaflet map
+  let cropIndex = null;       // which image is being cropped
+  const MAX_IMAGES = 5;
+
+  // ── Elements ──
+  const keyInput    = document.getElementById('api-key-input');
+  const saveKeyBtn  = document.getElementById('save-key-btn');
+  const keyStatus   = document.getElementById('key-status');
+  const dropZone    = document.getElementById('drop-zone');
+  const fileInput   = document.getElementById('file-input');
+  const previewWrap = document.getElementById('preview-wrap');
+  const thumbStrip  = document.getElementById('thumb-strip');
+  const addMoreBtn  = document.getElementById('add-more-btn');
+  const addFileInput = document.getElementById('add-file-input');
+  const identifyBtn = document.getElementById('identify-btn');
+  const clearBtn    = document.getElementById('clear-btn');
+  const loading     = document.getElementById('loading');
+  const errorBox    = document.getElementById('error-box');
+  const resultCard  = document.getElementById('result-card');
+  const historyList = document.getElementById('history-list');
+  const historyEmpty = document.getElementById('history-empty');
+  const clearHistoryBtn = document.getElementById('clear-history-btn');
+  const modalOverlay = document.getElementById('modal-overlay');
+  const modalClose   = document.getElementById('modal-close');
+
+  // ── API key persistence ──
+  const saved = localStorage.getItem('species_api_key');
+  if (saved) { keyInput.value = saved; keyStatus.textContent = '✓ Key loaded from storage'; }
+
+  saveKeyBtn.addEventListener('click', () => {
+    const v = keyInput.value.trim();
+    if (v.length < 20) { keyStatus.style.color = '#c0392b'; keyStatus.textContent = 'That doesn’t look like a valid API key.'; return; }
+    localStorage.setItem('species_api_key', v);
+    keyStatus.style.color = 'var(--green-mid)';
+    keyStatus.textContent = '✓ Saved';
+  });
+
+  // ── Drag & drop ──
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    handleFiles(e.dataTransfer.files);
+  });
+
+  fileInput.addEventListener('change', () => { handleFiles(fileInput.files); fileInput.value = ''; });
+  addFileInput.addEventListener('change', () => { handleFiles(addFileInput.files); addFileInput.value = ''; });
+  addMoreBtn.addEventListener('click', () => addFileInput.click());
+
+  clearBtn.addEventListener('click', () => {
+    images = [];
+    renderThumbs();
+    previewWrap.style.display = 'none';
+    resultCard.style.display = 'none';
+    errorBox.style.display = 'none';
+  });
+
+  function handleFiles(fileList) {
+    const files = Array.from(fileList || []).filter(f => f.type.startsWith('image/'));
+    if (!files.length) { showError('Please select an image file.'); return; }
+    let loaded = 0;
+    const toAdd = files.slice(0, MAX_IMAGES - images.length);
+    if (files.length > toAdd.length) showError(`Up to ${MAX_IMAGES} photos. Extra photos were skipped.`);
+    toAdd.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = e => {
+        addImage(e.target.result, file.type);
+        loaded++;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // Add one image to the collection and refresh the preview
+  function addImage(dataUrl, mime) {
+    if (images.length >= MAX_IMAGES) return;
+    images.push({ dataUrl, base64: dataUrl.split(',')[1], mime: mime || 'image/jpeg' });
+    renderThumbs();
+    previewWrap.style.display = 'block';
+    resultCard.style.display = 'none';
+    errorBox.style.display = 'none';
+    previewWrap.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function renderThumbs() {
+    thumbStrip.innerHTML = '';
+    images.forEach((img, i) => {
+      const wrap = document.createElement('div');
+      wrap.className = 'thumb';
+      const im = document.createElement('img');
+      im.src = img.dataUrl;
+      const btns = document.createElement('div');
+      btns.className = 'thumb-btns';
+      const cropB = document.createElement('button');
+      cropB.className = 'thumb-btn'; cropB.title = 'Crop / zoom'; cropB.textContent = '✂️';
+      cropB.addEventListener('click', () => openCrop(i));
+      const delB = document.createElement('button');
+      delB.className = 'thumb-btn'; delB.title = 'Remove'; delB.textContent = '✕';
+      delB.addEventListener('click', () => { images.splice(i, 1); renderThumbs(); if (!images.length) previewWrap.style.display = 'none'; });
+      btns.appendChild(cropB); btns.appendChild(delB);
+      wrap.appendChild(im); wrap.appendChild(btns);
+      thumbStrip.appendChild(wrap);
+    });
+    addMoreBtn.style.display = images.length >= MAX_IMAGES ? 'none' : 'block';
+  }
+
+  // ── Camera capture ──
+  const cameraOverlay = document.getElementById('camera-overlay');
+  const cameraVideo   = document.getElementById('camera-video');
+  const cameraError   = document.getElementById('camera-error');
+  const captureBtn    = document.getElementById('capture-btn');
+  const flipBtn       = document.getElementById('flip-camera-btn');
+  let cameraStream = null;
+  let facingMode = 'environment'; // rear camera by default (phones)
+
+  async function startCamera() {
+    cameraError.style.display = 'none';
+    cameraVideo.style.display = 'block';
+    captureBtn.disabled = false;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      showCameraError('Your browser does not support camera access. Try uploading a photo instead.');
+      return;
+    }
+    stopCamera();
+    try {
+      cameraStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: facingMode } },
+        audio: false
+      });
+      cameraVideo.srcObject = cameraStream;
+    } catch (err) {
+      let msg = 'Could not access the camera.';
+      if (err.name === 'NotAllowedError') msg = 'Camera permission was denied. Please allow camera access in your browser and try again.';
+      else if (err.name === 'NotFoundError') msg = 'No camera was found on this device. Try uploading a photo instead.';
+      else if (location.protocol === 'http:' && location.hostname !== 'localhost') msg = 'Camera requires a secure (https) connection.';
+      showCameraError(msg);
+    }
+  }
+
+  function showCameraError(msg) {
+    cameraVideo.style.display = 'none';
+    cameraError.textContent = '⚠️ ' + msg;
+    cameraError.style.display = 'block';
+    captureBtn.disabled = true;
+  }
+
+  function stopCamera() {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(t => t.stop());
+      cameraStream = null;
+    }
+  }
+
+  function openCamera() {
+    cameraOverlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    startCamera();
+  }
+  function closeCamera() {
+    cameraOverlay.classList.remove('open');
+    document.body.style.overflow = '';
+    stopCamera();
+  }
+
+  document.getElementById('open-camera-btn').addEventListener('click', openCamera);
+  document.getElementById('camera-close').addEventListener('click', closeCamera);
+  cameraOverlay.addEventListener('click', e => { if (e.target === cameraOverlay) closeCamera(); });
+
+  flipBtn.addEventListener('click', () => {
+    facingMode = facingMode === 'environment' ? 'user' : 'environment';
+    startCamera();
+  });
+
+  captureBtn.addEventListener('click', () => {
+    if (!cameraStream) return;
+    const canvas = document.createElement('canvas');
+    canvas.width  = cameraVideo.videoWidth;
+    canvas.height = cameraVideo.videoHeight;
+    canvas.getContext('2d').drawImage(cameraVideo, 0, 0);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+    const firstPhoto = images.length === 0;
+    closeCamera();
+    addImage(dataUrl, 'image/jpeg');
+    // Auto-identify after capturing the first photo if a key is saved
+    if (firstPhoto && localStorage.getItem('species_api_key')) {
+      identify();
+    }
+  });
+
+  // ── Audio (bird) identification ──
+  const audioOverlay = document.getElementById('audio-overlay');
+  const audioVisual  = document.getElementById('audio-visual');
+  const audioStatus  = document.getElementById('audio-status');
+  const audioTimer   = document.getElementById('audio-timer');
+  const audioErr     = document.getElementById('audio-error');
+  const audioRecordBtn   = document.getElementById('audio-record-btn');
+  const audioIdentifyBtn = document.getElementById('audio-identify-btn');
+  const audioRedoBtn     = document.getElementById('audio-redo-btn');
+  let audioRecorder = null, audioChunks = [], audioStream = null, audioBlob = null, audioMime = 'audio/webm', timerInt = null, timerSec = 0;
+
+  function openAudio() {
+    audioOverlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    resetAudio();
+  }
+  function closeAudio() {
+    audioOverlay.classList.remove('open');
+    document.body.style.overflow = '';
+    stopAudioStream();
+    if (audioRecorder && audioRecorder.state === 'recording') audioRecorder.stop();
+    clearInterval(timerInt);
+  }
+  function stopAudioStream() {
+    if (audioStream) { audioStream.getTracks().forEach(t => t.stop()); audioStream = null; }
+  }
+  function resetAudio() {
+    audioBlob = null; audioChunks = [];
+    audioErr.style.display = 'none';
+    audioTimer.style.display = 'none';
+    audioStatus.textContent = 'Tap record, then hold your phone toward the bird song.';
+    audioRecordBtn.style.display = '';
+    audioRecordBtn.textContent = '● Record';
+    audioRecordBtn.classList.remove('recording');
+    audioVisual.classList.remove('recording');
+    audioIdentifyBtn.style.display = 'none';
+    audioRedoBtn.style.display = 'none';
+  }
+  function showAudioError(msg) {
+    audioErr.textContent = '⚠️ ' + msg;
+    audioErr.style.display = 'block';
+  }
+
+  document.getElementById('open-audio-btn').addEventListener('click', openAudio);
+  document.getElementById('audio-close').addEventListener('click', closeAudio);
+  audioOverlay.addEventListener('click', e => { if (e.target === audioOverlay) closeAudio(); });
+  audioRedoBtn.addEventListener('click', resetAudio);
+
+  audioRecordBtn.addEventListener('click', async () => {
+    if (audioRecorder && audioRecorder.state === 'recording') { audioRecorder.stop(); return; }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || typeof MediaRecorder === 'undefined') {
+      showAudioError('Your browser does not support audio recording.'); return;
+    }
+    try {
+      audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (err) {
+      showAudioError(err.name === 'NotAllowedError' ? 'Microphone permission was denied.' : 'Could not access the microphone.');
+      return;
+    }
+    audioMime = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm'
+              : MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : '';
+    audioChunks = [];
+    audioRecorder = new MediaRecorder(audioStream, audioMime ? { mimeType: audioMime } : undefined);
+    audioRecorder.ondataavailable = e => { if (e.data.size) audioChunks.push(e.data); };
+    audioRecorder.onstop = () => {
+      audioBlob = new Blob(audioChunks, { type: audioMime || 'audio/webm' });
+      stopAudioStream();
+      clearInterval(timerInt);
+      audioVisual.classList.remove('recording');
+      audioRecordBtn.style.display = 'none';
+      audioStatus.textContent = 'Recording captured. Identify it, or redo.';
+      audioIdentifyBtn.style.display = '';
+      audioRedoBtn.style.display = '';
+    };
+    audioRecorder.start();
+    audioErr.style.display = 'none';
+    audioVisual.classList.add('recording');
+    audioRecordBtn.textContent = '■ Stop';
+    audioRecordBtn.classList.add('recording');
+    audioStatus.textContent = 'Recording… tap stop when done.';
+    timerSec = 0; audioTimer.style.display = 'block'; audioTimer.textContent = '0:00';
+    timerInt = setInterval(() => {
+      timerSec++;
+      audioTimer.textContent = Math.floor(timerSec/60) + ':' + String(timerSec%60).padStart(2,'0');
+      if (timerSec >= 30) audioRecorder.stop(); // cap at 30s
+    }, 1000);
+  });
+
+  audioIdentifyBtn.addEventListener('click', async () => {
+    const apiKey = localStorage.getItem('species_api_key') || keyInput.value.trim();
+    if (!apiKey) { showAudioError('Please save your Gemini API key first.'); return; }
+    if (!audioBlob) return;
+    audioIdentifyBtn.disabled = true;
+    audioStatus.textContent = 'Listening & identifying…';
+    try {
+      const base64 = await blobToBase64(audioBlob);
+      closeAudio();
+      images = []; renderThumbs(); previewWrap.style.display = 'none';
+      loading.style.display = 'block';
+      resultCard.style.display = 'none';
+      errorBox.style.display = 'none';
+      await runIdentification(AUDIO_INTRO + SCHEMA_PROMPT,
+        [{ inline_data: { mime_type: audioBlob.type || 'audio/webm', data: base64 } }], '');
+    } catch (err) {
+      showError(err.message);
+    } finally {
+      loading.style.display = 'none';
+      audioIdentifyBtn.disabled = false;
+    }
+  });
+
+  function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result.split(',')[1]);
+      r.onerror = reject;
+      r.readAsDataURL(blob);
+    });
+  }
+
+  // ── Crop / Zoom ──
+  const cropOverlay = document.getElementById('crop-overlay');
+  const cropImage   = document.getElementById('crop-image');
+  const cropStage   = document.getElementById('crop-stage');
+  const cropSel     = document.getElementById('crop-selection');
+  let cropDrag = null;  // { startX, startY }
+  let cropRect = null;  // { x, y, w, h } in stage-pixel coords
+
+  function openCrop(i) {
+    cropIndex = i;
+    cropImage.src = images[i].dataUrl;
+    cropRect = null;
+    cropSel.style.display = 'none';
+    cropOverlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeCrop() {
+    cropOverlay.classList.remove('open');
+    document.body.style.overflow = '';
+    cropIndex = null;
+  }
+  document.getElementById('crop-close').addEventListener('click', closeCrop);
+  cropOverlay.addEventListener('click', e => { if (e.target === cropOverlay) closeCrop(); });
+  document.getElementById('crop-reset-btn').addEventListener('click', () => {
+    cropRect = null; cropSel.style.display = 'none';
+  });
+
+  function imgBoundsInStage() {
+    const s = cropStage.getBoundingClientRect();
+    const im = cropImage.getBoundingClientRect();
+    return { left: im.left - s.left, top: im.top - s.top, width: im.width, height: im.height };
+  }
+  function pointerPos(e) {
+    const s = cropStage.getBoundingClientRect();
+    const p = e.touches ? e.touches[0] : e;
+    return { x: p.clientX - s.left, y: p.clientY - s.top };
+  }
+  function clampToImage(x, y) {
+    const b = imgBoundsInStage();
+    return {
+      x: Math.max(b.left, Math.min(x, b.left + b.width)),
+      y: Math.max(b.top, Math.min(y, b.top + b.height))
+    };
+  }
+  function startCropDrag(e) {
+    e.preventDefault();
+    const p = clampToImage(...Object.values(pointerPos(e)));
+    cropDrag = { startX: p.x, startY: p.y };
+    cropSel.style.display = 'block';
+    updateCropDrag(e);
+  }
+  function updateCropDrag(e) {
+    if (!cropDrag) return;
+    e.preventDefault();
+    const p = clampToImage(...Object.values(pointerPos(e)));
+    const x = Math.min(cropDrag.startX, p.x);
+    const y = Math.min(cropDrag.startY, p.y);
+    const w = Math.abs(p.x - cropDrag.startX);
+    const h = Math.abs(p.y - cropDrag.startY);
+    cropRect = { x, y, w, h };
+    cropSel.style.left = x + 'px';
+    cropSel.style.top = y + 'px';
+    cropSel.style.width = w + 'px';
+    cropSel.style.height = h + 'px';
+  }
+  function endCropDrag() {
+    cropDrag = null;
+    if (cropRect && (cropRect.w < 12 || cropRect.h < 12)) { cropRect = null; cropSel.style.display = 'none'; }
+  }
+  cropStage.addEventListener('mousedown', startCropDrag);
+  window.addEventListener('mousemove', updateCropDrag);
+  window.addEventListener('mouseup', endCropDrag);
+  cropStage.addEventListener('touchstart', startCropDrag, { passive: false });
+  cropStage.addEventListener('touchmove', updateCropDrag, { passive: false });
+  cropStage.addEventListener('touchend', endCropDrag);
+
+  document.getElementById('crop-apply-btn').addEventListener('click', () => {
+    if (cropIndex === null) return;
+    const b = imgBoundsInStage();
+    const natW = cropImage.naturalWidth, natH = cropImage.naturalHeight;
+    const scale = natW / b.width;
+    // If no selection, apply nothing (just close)
+    if (!cropRect || cropRect.w < 12 || cropRect.h < 12) { closeCrop(); return; }
+    const sx = (cropRect.x - b.left) * scale;
+    const sy = (cropRect.y - b.top) * scale;
+    const sw = cropRect.w * scale;
+    const sh = cropRect.h * scale;
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(sw);
+    canvas.height = Math.round(sh);
+    canvas.getContext('2d').drawImage(cropImage, sx, sy, sw, sh, 0, 0, sw, sh);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+    images[cropIndex] = { dataUrl, base64: dataUrl.split(',')[1], mime: 'image/jpeg' };
+    renderThumbs();
+    closeCrop();
+  });
+
+  // ── Identify ──
+  identifyBtn.addEventListener('click', identify);
+
+  async function identify() {
+    const apiKey = localStorage.getItem('species_api_key') || keyInput.value.trim();
+    if (!apiKey) { showError('Please enter and save your Google Gemini API key first.'); return; }
+    if (!images.length) { showError('Please select an image first.'); return; }
+
+    identifyBtn.disabled = true;
+    loading.style.display = 'block';
+    resultCard.style.display = 'none';
+    errorBox.style.display = 'none';
+
+    const prompt = IMAGE_INTRO + SCHEMA_PROMPT;
+
+    try {
+      await runIdentification(prompt, images.map(img => ({ inline_data: { mime_type: img.mime, data: img.base64 } })), images[0] ? images[0].dataUrl : '');
+    } catch (err) {
+      showError(err.message);
+    } finally {
+      identifyBtn.disabled = false;
+      loading.style.display = 'none';
+    }
+  }
+
+  // ── Shared prompt pieces ──
+  const IMAGE_INTRO = `You are an expert naturalist, field guide, and geologist. Analyze the image(s) and identify the animal, plant, fungus, rock, mineral, gemstone, or other natural subject shown.
+
+IMPORTANT: The image may show only a PART of an organism rather than the whole thing — for example a single leaf, flower, seed, bark, or fruit (plants); or a feather, paw print, track, egg, scat, fur, bone, antler, shell, or wing (animals). When you see only a part, still identify the most likely species it belongs to, AND describe which part it is. Use the part to deduce the species.
+
+`;
+  const AUDIO_INTRO = `You are an expert ornithologist and wildlife sound expert. Listen to this audio recording and identify the bird (or other animal) making the sound. Base your identification on the call, song, or other vocalisations you hear. Set category to "Bird" (or the appropriate animal category). In part_info, set is_part to false. If you also hear other species faintly, focus on the most prominent one.
+
+`;
+  const SCHEMA_PROMPT = `Respond ONLY with a JSON object in this exact structure (no markdown, no extra text):
+{
+  "category": "Animal" | "Plant" | "Fungus" | "Insect" | "Bird" | "Fish" | "Reptile" | "Amphibian" | "Rock" | "Mineral" | "Gemstone" | "Fossil" | "Other",
+  "part_info": {
+    "is_part": true if the image shows only a part/trace of the organism rather than the whole, otherwise false,
+    "part_name": "What part or trace is shown — e.g. 'Leaf', 'Flower', 'Bark', 'Feather', 'Paw print', 'Antler', 'Egg', 'Footprint'. Empty if whole organism.",
+    "description": "1-2 sentences on how this part identifies the species and any clues it gives (e.g. leaf shape, feather pattern, track size). Empty if whole organism."
+  },
+  "common_name": "...",
+  "scientific_name": "For living things: the scientific (Latin) name. For rocks/minerals: the chemical formula or mineral group, or leave empty.",
+  "habitat": "For living things: where it lives. For rocks/minerals: where in the world it is typically found and the geological environment it forms in.",
+  "habits": ["For living things: behaviours. For rocks/minerals: key physical/identifying characteristics like colour, lustre, texture, crystal shape."],
+  "quick_facts": ["fact 1", "fact 2", "fact 3"],
+  "fun_facts": [
+    {"emoji": "🌟", "fact": "A surprising or delightful fact most people don't know."},
+    {"emoji": "🔬", "fact": "A scientific or biological curiosity about anatomy, physiology, or genetics."},
+    {"emoji": "🌍", "fact": "A fascinating ecological role or relationship with other species."},
+    {"emoji": "🏆", "fact": "A record, extreme, or unique ability this species has."},
+    {"emoji": "🧠", "fact": "For animals: something remarkable about intelligence or behaviour. For plants/fungi: a clever survival adaptation, defence mechanism, or how it senses/responds to its environment."},
+    {"emoji": "🍽️", "fact": "For animals: something unusual about diet or feeding. For plants/fungi: how it gets nutrients, pollinators it attracts, or what eats it."},
+    {"emoji": "👶", "fact": "For animals: reproduction, lifespan, or young. For plants/fungi: how it reproduces, spreads seeds/spores, or its lifespan (some plants live thousands of years)."},
+    {"emoji": "🤝", "fact": "An unusual relationship with humans — cultural, historical, medicinal, culinary, or practical."},
+    {"emoji": "📜", "fact": "A piece of history, folklore, mythology, or the origin of its name."},
+    {"emoji": "💎", "fact": "Another genuinely surprising or quirky fact unique to this species."}
+  ],
+  "plant_care": {
+    "include": true if category is Plant or Fungus, otherwise false,
+    "watering": "How often and how much to water. Include signs of over/under-watering.",
+    "sunlight": "Light requirements — full sun, partial shade, indirect light, etc.",
+    "soil": "Preferred soil type, drainage needs, pH range.",
+    "temperature": "Ideal temperature range and frost/heat tolerance.",
+    "pruning": "When and how to prune or maintain. Include growth rate.",
+    "toxicity": "Is it toxic to humans, pets, or livestock? Be specific.",
+    "tips": ["A practical growing tip.", "A common mistake to avoid.", "A bonus tip for thriving growth."]
+  },
+  "geology": {
+    "include": true if category is Rock, Mineral, Gemstone, or Fossil, otherwise false,
+    "rock_type": "Type/classification — e.g. igneous/sedimentary/metamorphic for rocks, or mineral class for minerals.",
+    "composition": "Main minerals or chemical composition.",
+    "formation": "How it forms in nature, and roughly how long that takes.",
+    "hardness": "Mohs hardness scale value or range, with a relatable comparison (e.g. 'can be scratched by a knife').",
+    "found": "Where in the world it's commonly found and how to spot/identify it.",
+    "uses": "Common practical, industrial, decorative, or historical uses.",
+    "value": "Is it valuable or collectible? Roughly how common or rare is it?"
+  },
+  "seasonal": {
+    "include": true for living things (animals, plants, fungi, birds, insects, etc.), false for rocks/minerals/gemstones/fossils,
+    "best_time": "Best time of year to see or observe this species.",
+    "active_period": "For animals: when it's most active (season, time of day, hibernation/dormancy). For plants: growing season.",
+    "key_event": "For plants: when it flowers and fruits. For animals: breeding season, migration timing, or moulting.",
+    "where_now": "Brief note on where it typically is during the current season, if relevant."
+  },
+  "safety": {
+    "level": "Harmless" | "Caution" | "Dangerous",
+    "warning": "If Caution or Dangerous: a clear, specific warning — e.g. venomous bite, poisonous if eaten, stinging hairs, allergenic, sharp spines. If Harmless: a short reassuring note."
+  },
+  "similar_species": [
+    {"name": "A commonly confused look-alike species.", "difference": "The key feature that tells them apart."},
+    {"name": "Another look-alike, if relevant.", "difference": "How to distinguish it."}
+  ],
+  "pronunciation": "A simple phonetic respelling of the scientific name for an English speaker, e.g. 'Falco peregrinus' → 'FAL-koh peh-reh-GREE-nus'. Empty if no scientific name.",
+  "conservation": {
+    "include": true for living species, false for rocks/minerals/gemstones,
+    "status": "IUCN status: 'Least Concern' | 'Near Threatened' | 'Vulnerable' | 'Endangered' | 'Critically Endangered' | 'Extinct in the Wild' | 'Data Deficient' | 'Not Evaluated'",
+    "note": "One short sentence on population trend or threats."
+  },
+  "rarity": {
+    "level": "How often a person is likely to encounter it: 'Very Common' | 'Common' | 'Uncommon' | 'Rare' | 'Very Rare'",
+    "note": "Brief reason — e.g. widespread, localised, seasonal, elusive."
+  },
+  "edibility": {
+    "include": true for plants, fungi, fruits, berries, nuts, fish, shellfish, or commonly-eaten animals; false otherwise,
+    "rating": "'Edible' | 'Edible with caution' | 'Inedible' | 'Toxic' | 'Deadly'",
+    "note": "Specifics — which parts are edible, preparation needed, or why it's dangerous. NEVER guess; if unsure, say so and advise against eating."
+  },
+  "candidates": [
+    {"common_name": "Most likely species (same as common_name above)", "confidence": 0.0–1.0, "reason": "Brief reason this is the top pick."},
+    {"common_name": "Second most likely species", "confidence": 0.0–1.0, "reason": "What would make this the answer instead."},
+    {"common_name": "Third most likely species", "confidence": 0.0–1.0, "reason": "What would make this the answer instead."}
+  ],
+  "confidence": 0.0–1.0,
+  "notes": "Any important caveats about the ID (e.g. partial view, similar species, seasonal variation)."
+}
+
+Set safety.level to "Dangerous" for venomous/poisonous/aggressive species, "Caution" for mildly harmful ones (irritants, allergens, bites/stings that aren't serious), and "Harmless" otherwise. Always be accurate about safety.
+Provide 1-3 similar_species when meaningful look-alikes exist; otherwise use an empty array.
+For "candidates": list the 2-3 most plausible species in descending confidence; the first MUST match the main common_name. If you are highly confident (one clear answer), you may return just the single top candidate.
+If the whole organism is shown, set part_info.is_part to false and leave its part_name and description empty.
+If category is NOT Plant or Fungus, set plant_care to null. If category is NOT Rock, Mineral, Gemstone, or Fossil, set geology to null.
+Set seasonal.include to false (and you may leave its other fields empty) for rocks, minerals, gemstones, and fossils, since they are not seasonal.
+Set conservation.include to false for rocks/minerals/gemstones. Set edibility.include to false for anything not commonly eaten, and for rocks/minerals. Be extremely careful and conservative with edibility — when in doubt, rate "Inedible" and warn against eating.
+If multiple photos are provided, they show the SAME subject from different angles — use all of them together for a more confident identification.
+For rocks and minerals, make the fun_facts about geology, history, value, and uses instead of biology.
+Choose emojis that best match each fun fact — replace the placeholder emojis with ones that fit the actual content. Make every fact genuinely surprising, specific, and engaging. Avoid generic statements — include numbers, names, or vivid details wherever possible.
+If you cannot identify the organism or no organism is visible, set common_name to "Unknown" and explain in notes.`;
+
+  // Shared identification runner: sends media parts + prompt, renders & saves.
+  // thumb = image data URL to store (empty string for audio-only → a sound icon is used).
+  async function runIdentification(prompt, mediaParts, thumb) {
+    const apiKey = localStorage.getItem('species_api_key') || keyInput.value.trim();
+    const model = loadSettings().model;
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [ ...mediaParts, { text: prompt } ] }],
+          generationConfig: { maxOutputTokens: 5632 }
+        })
+      }
+    );
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err?.error?.message || `API error ${response.status}`);
+    }
+    const data = await response.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    let parsed;
+    try {
+      const clean = text.replace(/^```[a-z]*\n?/i, '').replace(/\n?```$/i, '').trim();
+      parsed = JSON.parse(clean);
+    } catch {
+      throw new Error('Could not parse the response. Raw output: ' + text.slice(0, 200));
+    }
+    renderResult(parsed);
+    const loc = await getLocation();
+    saveToHistory(parsed, thumb || AUDIO_THUMB, loc);
+  }
+
+  // A simple waveform/sound icon used as the thumbnail for audio identifications (URL-encoded SVG; no btoa so emoji-free)
+  const AUDIO_THUMB = 'data:image/svg+xml,' + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120">' +
+    '<rect width="120" height="120" fill="#2d5016"/>' +
+    '<g fill="#7db356"><rect x="30" y="50" width="8" height="20" rx="3"/><rect x="44" y="38" width="8" height="44" rx="3"/>' +
+    '<rect x="58" y="28" width="8" height="64" rx="3"/><rect x="72" y="42" width="8" height="36" rx="3"/><rect x="86" y="52" width="8" height="16" rx="3"/></g></svg>'
+  );
+
+  // Get current location (resolves to {lat,lng} or null). Non-blocking & forgiving.
+  function getLocation() {
+    return new Promise(resolve => {
+      if (!navigator.geolocation) return resolve(null);
+      navigator.geolocation.getCurrentPosition(
+        pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        () => resolve(null),
+        { enableHighAccuracy: false, timeout: 8000, maximumAge: 600000 }
+      );
+    });
+  }
+
+  function renderPartBanner(part, bannerEl, nameEl, descEl) {
+    if (part && part.is_part && part.part_name) {
+      nameEl.textContent = part.part_name;
+      descEl.textContent = part.description || '';
+      descEl.style.display = part.description ? '' : 'none';
+      bannerEl.style.display = 'flex';
+    } else {
+      bannerEl.style.display = 'none';
+    }
+  }
+
+  const SAFETY_STYLES = {
+    'Harmless':  { cls: 'safety-harmless',  icon: '✅', title: 'Harmless' },
+    'Caution':   { cls: 'safety-caution',   icon: '⚠️', title: 'Use Caution' },
+    'Dangerous': { cls: 'safety-dangerous', icon: '☠️', title: 'Dangerous' },
+  };
+
+  function renderSafety(safety, bannerEl, iconEl, titleEl, textEl) {
+    if (!safety || !safety.level || !SAFETY_STYLES[safety.level]) { bannerEl.style.display = 'none'; return; }
+    const s = SAFETY_STYLES[safety.level];
+    bannerEl.className = 'safety-banner ' + s.cls;
+    iconEl.textContent = s.icon;
+    titleEl.textContent = s.title;
+    textEl.textContent = safety.warning || '';
+    textEl.style.display = safety.warning ? '' : 'none';
+    bannerEl.style.display = 'flex';
+  }
+
+  // Pronunciation with text-to-speech
+  function renderPronunciation(pron, sciName, rowEl, textEl, btnEl) {
+    if (!pron && !sciName) { rowEl.style.display = 'none'; return; }
+    textEl.textContent = pron ? '🗣️ ' + pron : '';
+    rowEl.style.display = pron ? 'flex' : 'none';
+    btnEl.onclick = () => {
+      if (!('speechSynthesis' in window) || !sciName) return;
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(sciName);
+      u.rate = 0.8; u.lang = 'la';
+      speechSynthesis.speak(u);
+    };
+  }
+
+  const CONS_STYLES = {
+    'Least Concern':         { cls: 'chip-cons-lc', icon: '🟢' },
+    'Near Threatened':       { cls: 'chip-cons-nt', icon: '🟡' },
+    'Vulnerable':            { cls: 'chip-cons-vu', icon: '🟠' },
+    'Endangered':            { cls: 'chip-cons-en', icon: '🔴' },
+    'Critically Endangered': { cls: 'chip-cons-cr', icon: '🆘' },
+    'Extinct in the Wild':   { cls: 'chip-cons-ew', icon: '⚫' },
+    'Data Deficient':        { cls: 'chip-cons-na', icon: '❔' },
+    'Not Evaluated':         { cls: 'chip-cons-na', icon: '❔' },
+  };
+
+  function renderChips(d, container) {
+    container.innerHTML = '';
+    // Conservation chip
+    if (d.conservation && d.conservation.include && d.conservation.status) {
+      const c = CONS_STYLES[d.conservation.status] || CONS_STYLES['Not Evaluated'];
+      const chip = document.createElement('span');
+      chip.className = 'chip ' + c.cls;
+      chip.title = d.conservation.note || '';
+      const lbl = document.createElement('span'); lbl.className = 'chip-label'; lbl.textContent = 'Conservation:';
+      const val = document.createElement('span'); val.textContent = c.icon + ' ' + d.conservation.status;
+      chip.appendChild(lbl); chip.appendChild(val);
+      container.appendChild(chip);
+    }
+    // Rarity chip
+    if (d.rarity && d.rarity.level) {
+      const chip = document.createElement('span');
+      chip.className = 'chip chip-rarity';
+      chip.title = d.rarity.note || '';
+      const lbl = document.createElement('span'); lbl.className = 'chip-label'; lbl.textContent = 'Rarity:';
+      const val = document.createElement('span'); val.textContent = '📊 ' + d.rarity.level;
+      chip.appendChild(lbl); chip.appendChild(val);
+      container.appendChild(chip);
+    }
+    container.style.display = container.children.length ? 'flex' : 'none';
+  }
+
+  const EDIBILITY_STYLES = {
+    'Edible':               { cls: 'safety-harmless',  icon: '🍴', title: 'Edible' },
+    'Edible with caution':  { cls: 'safety-caution',   icon: '🍴', title: 'Edible with Caution' },
+    'Inedible':             { cls: 'safety-caution',   icon: '🚫', title: 'Inedible' },
+    'Toxic':                { cls: 'safety-dangerous', icon: '☠️', title: 'Toxic — Do Not Eat' },
+    'Deadly':               { cls: 'safety-dangerous', icon: '☠️', title: 'Deadly — Do Not Eat' },
+  };
+
+  function renderEdibility(ed, bannerEl, iconEl, titleEl, textEl) {
+    if (!ed || !ed.include || !ed.rating || !EDIBILITY_STYLES[ed.rating]) { bannerEl.style.display = 'none'; return; }
+    const s = EDIBILITY_STYLES[ed.rating];
+    bannerEl.className = 'safety-banner ' + s.cls;
+    iconEl.textContent = s.icon;
+    titleEl.textContent = s.title;
+    textEl.textContent = ed.note || '';
+    textEl.style.display = ed.note ? '' : 'none';
+    bannerEl.style.display = 'flex';
+  }
+
+  function renderSimilar(list, container, sectionEl) {
+    container.innerHTML = '';
+    if (!Array.isArray(list) || !list.length) { sectionEl.style.display = 'none'; return; }
+    list.forEach(sp => {
+      if (!sp || !sp.name) return;
+      const card = document.createElement('div');
+      card.className = 'similar-card';
+      const name = document.createElement('div');
+      name.className = 'similar-name';
+      name.textContent = sp.name;
+      const diff = document.createElement('div');
+      diff.className = 'similar-diff';
+      diff.textContent = sp.difference || '';
+      card.appendChild(name);
+      if (sp.difference) card.appendChild(diff);
+      container.appendChild(card);
+    });
+    sectionEl.style.display = container.children.length ? '' : 'none';
+  }
+
+  // Show top candidates only when there's genuine uncertainty (2+ candidates and top isn't dominant)
+  function renderCandidates(list, container, sectionEl) {
+    container.innerHTML = '';
+    const cands = (Array.isArray(list) ? list : []).filter(c => c && c.common_name);
+    // Only worth showing if there are at least 2 plausible options
+    if (cands.length < 2) { sectionEl.style.display = 'none'; return; }
+    cands.slice(0, 3).forEach((c, i) => {
+      const card = document.createElement('div');
+      card.className = 'candidate-card' + (i === 0 ? ' top' : '');
+      const rank = document.createElement('div');
+      rank.className = 'candidate-rank';
+      rank.textContent = (i + 1);
+      const info = document.createElement('div');
+      info.className = 'candidate-info';
+      const name = document.createElement('div');
+      name.className = 'candidate-name';
+      name.textContent = c.common_name;
+      info.appendChild(name);
+      if (c.reason) {
+        const reason = document.createElement('div');
+        reason.className = 'candidate-reason';
+        reason.textContent = c.reason;
+        info.appendChild(reason);
+      }
+      const conf = document.createElement('div');
+      conf.className = 'candidate-conf';
+      const pct = Math.round((Number(c.confidence) || 0) * 100);
+      const lbl = document.createElement('div');
+      lbl.className = 'candidate-conf-label';
+      lbl.textContent = pct + '%';
+      const barBg = document.createElement('div');
+      barBg.className = 'candidate-bar-bg';
+      const barFill = document.createElement('div');
+      barFill.className = 'candidate-bar-fill';
+      barFill.style.width = pct + '%';
+      barBg.appendChild(barFill);
+      conf.appendChild(lbl); conf.appendChild(barBg);
+      card.appendChild(rank); card.appendChild(info); card.appendChild(conf);
+      container.appendChild(card);
+    });
+    sectionEl.style.display = container.children.length ? '' : 'none';
+  }
+
+  function renderResult(d) {
+    currentResult = d;
+    document.getElementById('res-category').textContent = d.category || 'Species';
+    document.getElementById('res-common-name').textContent = d.common_name || 'Unknown';
+    document.getElementById('res-scientific').textContent = d.scientific_name || '';
+
+    // Pronunciation
+    renderPronunciation(d.pronunciation, d.scientific_name,
+      document.getElementById('res-pron-row'), document.getElementById('res-pron'), document.getElementById('res-pron-btn'));
+
+    // Chips (conservation + rarity)
+    renderChips(d, document.getElementById('res-chips'));
+
+    // Part-of-organism banner
+    renderPartBanner(d.part_info,
+      document.getElementById('res-part-banner'),
+      document.getElementById('res-part-name'),
+      document.getElementById('res-part-desc'));
+
+    // Safety banner
+    renderSafety(d.safety,
+      document.getElementById('res-safety'),
+      document.getElementById('res-safety-icon'),
+      document.getElementById('res-safety-title'),
+      document.getElementById('res-safety-text'));
+
+    // Edibility banner
+    renderEdibility(d.edibility,
+      document.getElementById('res-edibility'),
+      document.getElementById('res-edibility-icon'),
+      document.getElementById('res-edibility-title'),
+      document.getElementById('res-edibility-text'));
+
+    // Habitat
+    const habEl = document.getElementById('res-habitat');
+    habEl.innerHTML = '';
+    const habP = document.createElement('p');
+    habP.textContent = d.habitat || '—';
+    habEl.appendChild(habP);
+
+    // Habits
+    const habitsEl = document.getElementById('res-habits');
+    habitsEl.innerHTML = '';
+    if (Array.isArray(d.habits) && d.habits.length) {
+      const ul = document.createElement('ul');
+      d.habits.forEach(h => { const li = document.createElement('li'); li.textContent = h; ul.appendChild(li); });
+      habitsEl.appendChild(ul);
+    } else {
+      habitsEl.textContent = d.habits || '—';
+    }
+
+    // Facts
+    const factsEl = document.getElementById('res-facts');
+    factsEl.innerHTML = '';
+    const items = Array.isArray(d.quick_facts) ? d.quick_facts : [];
+    if (d.notes) items.push('Note: ' + d.notes);
+    if (items.length) {
+      const ul = document.createElement('ul');
+      items.forEach(f => { const li = document.createElement('li'); li.textContent = f; ul.appendChild(li); });
+      factsEl.appendChild(ul);
+    }
+
+    // Plant care
+    renderPlantCare(d.plant_care, document.getElementById('res-care'), document.getElementById('res-care-section'));
+
+    // Geology
+    renderGeology(d.geology, document.getElementById('res-geology'), document.getElementById('res-geology-section'));
+
+    // Seasonal
+    renderSeasonal(d.seasonal, document.getElementById('res-seasonal'), document.getElementById('res-seasonal-section'));
+
+    // Similar species
+    renderCandidates(d.candidates, document.getElementById('res-candidates'), document.getElementById('res-candidates-section'));
+    renderSimilar(d.similar_species, document.getElementById('res-similar'), document.getElementById('res-similar-section'));
+
+    // Fun facts
+    renderFunFacts(d.fun_facts, document.getElementById('res-funfacts'));
+    document.getElementById('res-funfacts-section').style.display =
+      (Array.isArray(d.fun_facts) && d.fun_facts.length) ? '' : 'none';
+
+    // Confidence
+    const conf = Math.round((d.confidence || 0) * 100);
+    document.getElementById('conf-fill').style.width = conf + '%';
+    document.getElementById('conf-label').textContent = conf + '%';
+
+    resultCard.style.display = 'block';
+    resultCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function renderPlantCare(care, container, sectionEl) {
+    container.innerHTML = '';
+    if (!care || !care.include) { sectionEl.style.display = 'none'; return; }
+    sectionEl.style.display = '';
+    const fields = [
+      { key: 'watering',    label: '💧 Watering',    cls: '' },
+      { key: 'sunlight',    label: '☀️ Sunlight',    cls: '' },
+      { key: 'soil',        label: '🌱 Soil',        cls: '' },
+      { key: 'temperature', label: '🌡️ Temperature', cls: '' },
+      { key: 'pruning',     label: '✂️ Pruning',     cls: '' },
+      { key: 'toxicity',    label: '⚠️ Toxicity',    cls: 'care-toxicity' },
+    ];
+    fields.forEach(({ key, label, cls }) => {
+      if (!care[key]) return;
+      const card = document.createElement('div');
+      card.className = 'care-card ' + cls;
+      const labelEl = document.createElement('div');
+      labelEl.className = 'care-card-label';
+      labelEl.textContent = label;
+      const valueEl = document.createElement('div');
+      valueEl.className = 'care-card-value';
+      valueEl.textContent = care[key];
+      card.appendChild(labelEl);
+      card.appendChild(valueEl);
+      container.appendChild(card);
+    });
+    if (Array.isArray(care.tips) && care.tips.length) {
+      const card = document.createElement('div');
+      card.className = 'care-card care-tips full-width';
+      const ul = document.createElement('ul');
+      care.tips.forEach(t => { const li = document.createElement('li'); li.textContent = t; ul.appendChild(li); });
+      card.innerHTML = `<div class="care-card-label">💡 Growing Tips</div>`;
+      card.appendChild(ul);
+      container.appendChild(card);
+    }
+  }
+
+  function renderGeology(geo, container, sectionEl) {
+    container.innerHTML = '';
+    if (!geo || !geo.include) { sectionEl.style.display = 'none'; return; }
+    sectionEl.style.display = '';
+    const fields = [
+      { key: 'rock_type',   label: '🗂️ Type' },
+      { key: 'composition', label: '⚗️ Composition' },
+      { key: 'formation',   label: '🌋 Formation' },
+      { key: 'hardness',    label: '💪 Hardness' },
+      { key: 'found',       label: '📍 Where Found' },
+      { key: 'uses',        label: '🔧 Uses' },
+      { key: 'value',       label: '💰 Value & Rarity' },
+    ];
+    fields.forEach(({ key, label }) => {
+      if (!geo[key]) return;
+      const card = document.createElement('div');
+      card.className = 'care-card';
+      const labelEl = document.createElement('div');
+      labelEl.className = 'care-card-label';
+      labelEl.textContent = label;
+      const valueEl = document.createElement('div');
+      valueEl.className = 'care-card-value';
+      valueEl.textContent = geo[key];
+      card.appendChild(labelEl);
+      card.appendChild(valueEl);
+      container.appendChild(card);
+    });
+  }
+
+  function renderSeasonal(seasonal, container, sectionEl) {
+    container.innerHTML = '';
+    if (!seasonal || !seasonal.include) { sectionEl.style.display = 'none'; return; }
+    const fields = [
+      { key: 'best_time',     label: '👀 Best Time to See' },
+      { key: 'active_period', label: '🔆 Active / Growing' },
+      { key: 'key_event',     label: '🌸 Flowering / Breeding' },
+      { key: 'where_now',     label: '🧭 This Season' },
+    ];
+    fields.forEach(({ key, label }) => {
+      if (!seasonal[key]) return;
+      const card = document.createElement('div');
+      card.className = 'care-card';
+      const labelEl = document.createElement('div');
+      labelEl.className = 'care-card-label';
+      labelEl.textContent = label;
+      const valueEl = document.createElement('div');
+      valueEl.className = 'care-card-value';
+      valueEl.textContent = seasonal[key];
+      card.appendChild(labelEl);
+      card.appendChild(valueEl);
+      container.appendChild(card);
+    });
+    sectionEl.style.display = container.children.length ? '' : 'none';
+  }
+
+  function renderFunFacts(funFacts, container) {
+    container.innerHTML = '';
+    if (!Array.isArray(funFacts) || !funFacts.length) return;
+    funFacts.forEach(f => {
+      const card = document.createElement('div');
+      card.className = 'fun-fact-card';
+      const emojiEl = document.createElement('div');
+      emojiEl.className = 'fun-fact-emoji';
+      emojiEl.textContent = f.emoji || '✨';
+      const textEl = document.createElement('div');
+      textEl.className = 'fun-fact-text';
+      textEl.textContent = f.fact || '';
+      card.appendChild(emojiEl);
+      card.appendChild(textEl);
+      container.appendChild(card);
+    });
+  }
+
+  function showError(msg) {
+    errorBox.textContent = '⚠️ ' + msg;
+    errorBox.style.display = 'block';
+  }
+
+  // ── History ──
+  function loadHistory() {
+    try { return JSON.parse(localStorage.getItem('species_history') || '[]'); }
+    catch { return []; }
+  }
+  function saveHistory(arr) {
+    localStorage.setItem('species_history', JSON.stringify(arr));
+  }
+
+  function saveToHistory(data, dataUrl, location) {
+    const history = loadHistory();
+    history.unshift({
+      id: Date.now(),
+      timestamp: new Date().toISOString(),
+      data,
+      thumb: dataUrl,
+      location: location || null
+    });
+    // Respect history limit setting (0 = unlimited, capped at 200 for storage safety)
+    const limit = loadSettings().limit || 200;
+    saveHistory(history.slice(0, limit));
+    renderHistory();
+  }
+
+  function renderHistory() {
+    const history = loadHistory();
+    if (history.length === 0) {
+      historyEmpty.style.display = 'block';
+      historyList.innerHTML = '';
+      return;
+    }
+    historyEmpty.style.display = 'none';
+    historyList.innerHTML = '';
+    history.forEach(entry => {
+      const item = document.createElement('div');
+      item.className = 'history-item';
+      const thumb = document.createElement('img');
+      thumb.className = 'history-thumb';
+      thumb.src = entry.thumb;
+      thumb.alt = entry.data.common_name || '';
+
+      const info = document.createElement('div');
+      info.className = 'history-info';
+      const nameEl = document.createElement('div');
+      nameEl.className = 'history-name';
+      nameEl.textContent = entry.data.common_name || 'Unknown';
+      const sciEl = document.createElement('div');
+      sciEl.className = 'history-scientific';
+      sciEl.textContent = entry.data.scientific_name || '';
+      const meta = document.createElement('div');
+      meta.className = 'history-meta';
+      const badge = document.createElement('span');
+      badge.className = 'history-badge';
+      badge.textContent = entry.data.category || 'Species';
+      const dateEl = document.createElement('span');
+      dateEl.className = 'history-date';
+      dateEl.textContent = formatDate(entry.timestamp);
+      meta.appendChild(badge);
+      meta.appendChild(dateEl);
+      info.appendChild(nameEl);
+      info.appendChild(sciEl);
+      info.appendChild(meta);
+      if (entry.location) {
+        const locEl = document.createElement('div');
+        locEl.className = 'history-location';
+        locEl.textContent = '📍 ' + entry.location.lat.toFixed(3) + ', ' + entry.location.lng.toFixed(3);
+        info.appendChild(locEl);
+      }
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'history-delete';
+      delBtn.title = 'Remove';
+      delBtn.textContent = '🗑';
+
+      item.appendChild(thumb);
+      item.appendChild(info);
+      item.appendChild(delBtn);
+      if (compareMode) {
+        item.classList.add('compare-selectable');
+        if (compareSelection.includes(entry.id)) item.classList.add('compare-selected');
+      }
+      // Click: in compare mode, toggle selection; otherwise open modal
+      item.addEventListener('click', e => {
+        if (e.target.closest('.history-delete')) return;
+        if (compareMode) { toggleCompareSelect(entry.id); return; }
+        openModal(entry);
+      });
+      item.querySelector('.history-delete').addEventListener('click', e => {
+        e.stopPropagation();
+        deleteHistoryEntry(entry.id);
+      });
+      historyList.appendChild(item);
+    });
+    renderMap(history);
+    renderStats(history);
+  }
+
+  // ── Stats dashboard ──
+  function renderStats(history) {
+    const section = document.getElementById('stats-section');
+    const grid = document.getElementById('stats-grid');
+    if (!history.length) { section.style.display = 'none'; return; }
+    section.style.display = 'block';
+    grid.innerHTML = '';
+
+    // Total
+    const total = history.length;
+    // Unique species
+    const uniqueNames = new Set(history.map(e => (e.data.common_name || '').toLowerCase()).filter(Boolean));
+    // Categories
+    const catCounts = {};
+    history.forEach(e => { const c = e.data.category || 'Other'; catCounts[c] = (catCounts[c] || 0) + 1; });
+    // This month
+    const now = new Date();
+    const thisMonth = history.filter(e => { const d = new Date(e.timestamp); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); }).length;
+    // Day streak (consecutive days up to today with at least one find)
+    const days = new Set(history.map(e => new Date(e.timestamp).toDateString()));
+    let streak = 0; let cur = new Date();
+    while (days.has(cur.toDateString())) { streak++; cur.setDate(cur.getDate() - 1); }
+    // Rarest find
+    const rarityRank = { 'Very Rare': 5, 'Rare': 4, 'Uncommon': 3, 'Common': 2, 'Very Common': 1 };
+    let rarest = null, rarestRank = 0;
+    history.forEach(e => { const lvl = e.data.rarity && e.data.rarity.level; const rk = rarityRank[lvl] || 0; if (rk > rarestRank) { rarestRank = rk; rarest = e.data.common_name; } });
+
+    const mkStat = (value, label, wide) => {
+      const card = document.createElement('div');
+      card.className = 'stat-card' + (wide ? ' wide' : '');
+      const v = document.createElement('div'); v.className = 'stat-value'; v.textContent = value;
+      const l = document.createElement('div'); l.className = 'stat-label'; l.textContent = label;
+      card.appendChild(v); card.appendChild(l);
+      return card;
+    };
+    grid.appendChild(mkStat(total, 'Total finds'));
+    grid.appendChild(mkStat(uniqueNames.size, 'Unique species'));
+    grid.appendChild(mkStat(thisMonth, 'This month'));
+    grid.appendChild(mkStat(streak + (streak === 1 ? ' day' : ' days'), 'Current streak'));
+    if (rarest) grid.appendChild(mkStat('🏆', 'Rarest: ' + rarest));
+
+    // Category breakdown (wide)
+    const wide = document.createElement('div');
+    wide.className = 'stat-card wide';
+    const wl = document.createElement('div'); wl.className = 'stat-label'; wl.textContent = 'By category';
+    const bd = document.createElement('div'); bd.className = 'stat-breakdown';
+    Object.entries(catCounts).sort((a,b) => b[1]-a[1]).forEach(([cat, n]) => {
+      const s = document.createElement('span'); s.className = 'stat-cat'; s.textContent = `${cat} ${n}`;
+      bd.appendChild(s);
+    });
+    wide.appendChild(wl); wide.appendChild(bd);
+    grid.appendChild(wide);
+  }
+
+  function renderMap(history) {
+    const located = history.filter(e => e.location);
+    const mapSection = document.getElementById('map-section');
+    if (typeof L === 'undefined' || located.length === 0) {
+      mapSection.style.display = 'none';
+      return;
+    }
+    mapSection.style.display = 'block';
+    if (!mapInstance) {
+      mapInstance = L.map('map');
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap', maxZoom: 19
+      }).addTo(mapInstance);
+    }
+    // Clear old markers
+    mapInstance.eachLayer(layer => { if (layer instanceof L.Marker) mapInstance.removeLayer(layer); });
+    const bounds = [];
+    located.forEach(e => {
+      const m = L.marker([e.location.lat, e.location.lng]).addTo(mapInstance);
+      const name = (e.data.common_name || 'Unknown').replace(/</g, '&lt;');
+      const sci = (e.data.scientific_name || '').replace(/</g, '&lt;');
+      m.bindPopup(`<div class="map-popup-name">${name}</div>${sci ? `<div class="map-popup-sci">${sci}</div>` : ''}`);
+      bounds.push([e.location.lat, e.location.lng]);
+    });
+    if (bounds.length === 1) mapInstance.setView(bounds[0], 13);
+    else mapInstance.fitBounds(bounds, { padding: [30, 30] });
+    setTimeout(() => mapInstance.invalidateSize(), 100);
+  }
+
+  function deleteHistoryEntry(id) {
+    const history = loadHistory().filter(e => e.id !== id);
+    saveHistory(history);
+    renderHistory();
+  }
+
+  clearHistoryBtn.addEventListener('click', () => {
+    if (confirm('Clear all past identifications?')) {
+      saveHistory([]);
+      renderHistory();
+    }
+  });
+
+  // ── Compare mode ──
+  let compareMode = false;
+  let compareSelection = [];
+  const compareBtn = document.getElementById('compare-btn');
+  const compareHint = document.getElementById('compare-hint');
+  const compareGoBtn = document.getElementById('compare-go-btn');
+
+  compareBtn.addEventListener('click', () => {
+    compareMode = !compareMode;
+    compareSelection = [];
+    compareBtn.classList.toggle('active', compareMode);
+    compareHint.style.display = compareMode ? 'block' : 'none';
+    compareGoBtn.disabled = true;
+    renderHistory();
+  });
+  document.getElementById('compare-cancel-btn').addEventListener('click', () => {
+    compareMode = false; compareSelection = [];
+    compareBtn.classList.remove('active');
+    compareHint.style.display = 'none';
+    renderHistory();
+  });
+  function toggleCompareSelect(id) {
+    const i = compareSelection.indexOf(id);
+    if (i >= 0) compareSelection.splice(i, 1);
+    else { if (compareSelection.length >= 2) compareSelection.shift(); compareSelection.push(id); }
+    compareGoBtn.disabled = compareSelection.length !== 2;
+    renderHistory();
+  }
+  compareGoBtn.addEventListener('click', () => {
+    if (compareSelection.length !== 2) return;
+    const history = loadHistory();
+    const a = history.find(e => e.id === compareSelection[0]);
+    const b = history.find(e => e.id === compareSelection[1]);
+    if (a && b) openCompare(a, b);
+  });
+
+  const compareOverlay = document.getElementById('compare-overlay');
+  function openCompare(a, b) {
+    const grid = document.getElementById('compare-grid');
+    grid.innerHTML = '';
+    [a, b].forEach(entry => {
+      const d = entry.data;
+      const col = document.createElement('div');
+      col.className = 'compare-col';
+      const img = document.createElement('img'); img.src = entry.thumb; img.alt = d.common_name || '';
+      const h3 = document.createElement('h3'); h3.textContent = d.common_name || 'Unknown';
+      const sci = document.createElement('div'); sci.className = 'compare-sci'; sci.textContent = d.scientific_name || '';
+      col.appendChild(img); col.appendChild(h3); col.appendChild(sci);
+      const fields = [
+        ['Category', d.category],
+        ['Habitat', d.habitat],
+        ['Conservation', d.conservation && d.conservation.include ? d.conservation.status : ''],
+        ['Rarity', d.rarity && d.rarity.level],
+        ['Safety', d.safety && d.safety.level],
+        ['Edibility', d.edibility && d.edibility.include ? d.edibility.rating : ''],
+      ];
+      fields.forEach(([label, val]) => {
+        if (!val) return;
+        const f = document.createElement('div'); f.className = 'compare-field';
+        const l = document.createElement('div'); l.className = 'compare-field-label'; l.textContent = label;
+        const v = document.createElement('div'); v.className = 'compare-field-value'; v.textContent = val;
+        f.appendChild(l); f.appendChild(v); col.appendChild(f);
+      });
+      grid.appendChild(col);
+    });
+    compareOverlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeCompare() {
+    compareOverlay.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+  document.getElementById('compare-close').addEventListener('click', closeCompare);
+  compareOverlay.addEventListener('click', e => { if (e.target === compareOverlay) closeCompare(); });
+
+  function formatDate(iso) {
+    const d = new Date(iso);
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+      + ' · ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  }
+
+  // ── Modal ──
+  function openModal(entry) {
+    const d = entry.data;
+    document.getElementById('modal-img').src = entry.thumb;
+    document.getElementById('modal-category').textContent = d.category || 'Species';
+    document.getElementById('modal-common-name').textContent = d.common_name || 'Unknown';
+    document.getElementById('modal-scientific').textContent = d.scientific_name || '';
+
+    renderPronunciation(d.pronunciation, d.scientific_name,
+      document.getElementById('modal-pron-row'), document.getElementById('modal-pron'), document.getElementById('modal-pron-btn'));
+    renderChips(d, document.getElementById('modal-chips'));
+
+    renderPartBanner(d.part_info,
+      document.getElementById('modal-part-banner'),
+      document.getElementById('modal-part-name'),
+      document.getElementById('modal-part-desc'));
+
+    renderSafety(d.safety,
+      document.getElementById('modal-safety'),
+      document.getElementById('modal-safety-icon'),
+      document.getElementById('modal-safety-title'),
+      document.getElementById('modal-safety-text'));
+
+    renderEdibility(d.edibility,
+      document.getElementById('modal-edibility'),
+      document.getElementById('modal-edibility-icon'),
+      document.getElementById('modal-edibility-title'),
+      document.getElementById('modal-edibility-text'));
+
+    const habEl = document.getElementById('modal-habitat');
+    habEl.innerHTML = '';
+    const mHabP = document.createElement('p');
+    mHabP.textContent = d.habitat || '—';
+    habEl.appendChild(mHabP);
+
+    const habitsEl = document.getElementById('modal-habits');
+    habitsEl.innerHTML = '';
+    if (Array.isArray(d.habits) && d.habits.length) {
+      const ul = document.createElement('ul');
+      d.habits.forEach(h => { const li = document.createElement('li'); li.textContent = h; ul.appendChild(li); });
+      habitsEl.appendChild(ul);
+    } else { habitsEl.textContent = '—'; }
+
+    const factsEl = document.getElementById('modal-facts');
+    factsEl.innerHTML = '';
+    const items = [...(Array.isArray(d.quick_facts) ? d.quick_facts : [])];
+    if (d.notes) items.push('Note: ' + d.notes);
+    if (items.length) {
+      const ul = document.createElement('ul');
+      items.forEach(f => { const li = document.createElement('li'); li.textContent = f; ul.appendChild(li); });
+      factsEl.appendChild(ul);
+    }
+
+    // Plant care
+    renderPlantCare(d.plant_care, document.getElementById('modal-care'), document.getElementById('modal-care-section'));
+
+    // Geology
+    renderGeology(d.geology, document.getElementById('modal-geology'), document.getElementById('modal-geology-section'));
+
+    // Seasonal
+    renderSeasonal(d.seasonal, document.getElementById('modal-seasonal'), document.getElementById('modal-seasonal-section'));
+
+    // Similar species
+    renderCandidates(d.candidates, document.getElementById('modal-candidates'), document.getElementById('modal-candidates-section'));
+    renderSimilar(d.similar_species, document.getElementById('modal-similar'), document.getElementById('modal-similar-section'));
+
+    // Fun facts
+    renderFunFacts(d.fun_facts, document.getElementById('modal-funfacts'));
+    document.getElementById('modal-funfacts-section').style.display =
+      (Array.isArray(d.fun_facts) && d.fun_facts.length) ? '' : 'none';
+
+    const conf = Math.round((d.confidence || 0) * 100);
+    document.getElementById('modal-conf-fill').style.width = conf + '%';
+    document.getElementById('modal-conf-label').textContent = conf + '%';
+
+    modalOverlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeModal() {
+    modalOverlay.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  modalClose.addEventListener('click', closeModal);
+  modalOverlay.addEventListener('click', e => { if (e.target === modalOverlay) closeModal(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+  // ── Settings ──
+  const MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-pro'];
+  const LIMITS = [10, 25, 50, 100, 0];
+  // Migrate retired model names saved from older versions
+  const RETIRED_MODELS = { 'gemini-2.0-flash': 'gemini-2.5-flash', 'gemini-2.0-flash-lite': 'gemini-2.5-flash-lite', 'gemini-1.5-pro': 'gemini-2.5-pro' };
+  (function migrateModel(){ const m = localStorage.getItem('species_model'); if (m && RETIRED_MODELS[m]) localStorage.setItem('species_model', RETIRED_MODELS[m]); })();
+
+  function loadSettings() {
+    return {
+      model: localStorage.getItem('species_model') || 'gemini-2.5-flash',
+      limit: parseInt(localStorage.getItem('species_limit') ?? '50', 10)
+    };
+  }
+  function saveSettings(s) {
+    localStorage.setItem('species_model', s.model);
+    localStorage.setItem('species_limit', String(s.limit));
+  }
+
+  function applySettingsUI() {
+    const s = loadSettings();
+    // Model radio buttons
+    document.querySelectorAll('.model-option').forEach(el => {
+      const radio = el.querySelector('input[type="radio"]');
+      const active = radio.value === s.model;
+      radio.checked = active;
+      el.classList.toggle('selected', active);
+    });
+    // Limit buttons
+    document.querySelectorAll('.limit-btn').forEach(btn => {
+      btn.classList.toggle('selected', parseInt(btn.dataset.limit, 10) === s.limit);
+    });
+  }
+
+  // Model selection
+  document.querySelectorAll('.model-option input[type="radio"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      const s = loadSettings();
+      s.model = radio.value;
+      saveSettings(s);
+      applySettingsUI();
+    });
+  });
+  document.querySelectorAll('.model-option').forEach(label => {
+    label.addEventListener('click', () => {
+      const radio = label.querySelector('input[type="radio"]');
+      radio.checked = true;
+      radio.dispatchEvent(new Event('change'));
+    });
+  });
+
+  // Limit buttons
+  document.querySelectorAll('.limit-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const s = loadSettings();
+      s.limit = parseInt(btn.dataset.limit, 10);
+      saveSettings(s);
+      applySettingsUI();
+      // Trim history to new limit immediately
+      if (s.limit > 0) {
+        const h = loadHistory();
+        if (h.length > s.limit) { saveHistory(h.slice(0, s.limit)); renderHistory(); }
+      }
+    });
+  });
+
+  // Drawer open/close
+  const settingsOverlay = document.getElementById('settings-overlay');
+  document.getElementById('settings-btn').addEventListener('click', () => {
+    settingsOverlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  });
+  function closeSettings() {
+    settingsOverlay.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+  document.getElementById('settings-close').addEventListener('click', closeSettings);
+  settingsOverlay.addEventListener('click', e => { if (e.target === settingsOverlay) closeSettings(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeSettings(); closeModal(); closeCamera(); closeCrop(); closeAudio(); closeCompare(); } });
+
+  // ── Copy & Share ──
+  function buildSummary(d) {
+    if (!d) return '';
+    const lines = [];
+    lines.push(`${d.common_name || 'Unknown'}${d.scientific_name ? ' (' + d.scientific_name + ')' : ''}`);
+    if (d.category) lines.push(`Category: ${d.category}`);
+    if (d.part_info && d.part_info.is_part && d.part_info.part_name) lines.push(`Identified from: ${d.part_info.part_name}`);
+    if (d.safety && d.safety.level && d.safety.level !== 'Harmless') lines.push(`⚠️ Safety (${d.safety.level}): ${d.safety.warning || ''}`);
+    if (d.habitat) lines.push(`\nHabitat: ${d.habitat}`);
+    if (Array.isArray(d.habits) && d.habits.length) lines.push(`\nHabits:\n- ${d.habits.join('\n- ')}`);
+    if (Array.isArray(d.quick_facts) && d.quick_facts.length) lines.push(`\nQuick Facts:\n- ${d.quick_facts.join('\n- ')}`);
+    if (Array.isArray(d.fun_facts) && d.fun_facts.length) lines.push(`\nDid You Know?\n${d.fun_facts.map(f => (f.emoji || '•') + ' ' + f.fact).join('\n')}`);
+    lines.push(`\n— Identified with Species Identifier`);
+    return lines.join('\n');
+  }
+
+  const copyBtn = document.getElementById('copy-btn');
+  const shareBtn = document.getElementById('share-btn');
+
+  copyBtn.addEventListener('click', async () => {
+    if (!currentResult) return;
+    const text = buildSummary(currentResult);
+    try {
+      await navigator.clipboard.writeText(text);
+      copyBtn.textContent = '✓ Copied!';
+      copyBtn.classList.add('copied');
+      setTimeout(() => { copyBtn.textContent = '📋 Copy'; copyBtn.classList.remove('copied'); }, 1800);
+    } catch {
+      // Fallback for older browsers
+      const ta = document.createElement('textarea');
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); copyBtn.textContent = '✓ Copied!'; } catch {}
+      document.body.removeChild(ta);
+      setTimeout(() => { copyBtn.textContent = '📋 Copy'; }, 1800);
+    }
+  });
+
+  shareBtn.addEventListener('click', async () => {
+    if (!currentResult) return;
+    const text = buildSummary(currentResult);
+    const title = (currentResult.common_name || 'Species') + ' — Species Identifier';
+    if (navigator.share) {
+      try { await navigator.share({ title, text }); } catch {}
+    } else {
+      // No native share — copy instead
+      try {
+        await navigator.clipboard.writeText(text);
+        shareBtn.textContent = '✓ Copied to clipboard';
+        shareBtn.classList.add('copied');
+        setTimeout(() => { shareBtn.textContent = '🔗 Share'; shareBtn.classList.remove('copied'); }, 1800);
+      } catch {}
+    }
+  });
+
+  // ── Init ──
+  applySettingsUI();
+  renderHistory();
+</script>
+<script>
+  // ── PWA service worker registration ──
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(err => console.warn('SW registration failed:', err));
+    });
+  }
+</script>
+</body>
+</html>

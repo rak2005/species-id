@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Species Identifier</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cdefs%3E%3ClinearGradient id='b' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%234a7c2f'/%3E%3Cstop offset='1' stop-color='%232d5016'/%3E%3C/linearGradient%3E%3ClinearGradient id='l' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%239ed16b'/%3E%3Cstop offset='1' stop-color='%235a9a32'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='512' height='512' rx='112' fill='url(%23b)'/%3E%3Cg transform='translate(196 196)'%3E%3Ccircle r='132' fill='%23f5f0e8'/%3E%3Cpath d='M -8 74 C -78 54 -88 -36 -2 -74 C 84 -36 74 54 4 74 C 2 34 2 -6 0 -46 C -2 -6 -6 34 -8 74 Z' fill='url(%23l)' transform='translate(0 4)'/%3E%3C/g%3E%3Crect x='300' y='300' width='150' height='52' rx='26' transform='rotate(45 300 300)' fill='%23c9b99a' stroke='%236b4226' stroke-width='8'/%3E%3C/svg%3E" />
   <link rel="apple-touch-icon" href="icon-192.png" />
@@ -16,6 +16,20 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── iOS / mobile optimizations ── */
+    html {
+      -webkit-text-size-adjust: 100%;   /* stop iOS resizing text */
+      height: -webkit-fill-available;    /* fix iOS 100vh address-bar quirk */
+    }
+    * { -webkit-tap-highlight-color: transparent; }  /* no grey flash on tap */
+    button, .cat-chip, .action-btn, a { -webkit-touch-callout: none; }
+    body {
+      overscroll-behavior-y: none;       /* no rubber-band overscroll */
+      -webkit-font-smoothing: antialiased;
+    }
+    /* Inputs at 16px+ so iOS doesn't auto-zoom when focused */
+    input, textarea, select { font-size: 16px; }
 
     :root {
       --green-dark:  #2d5016;
@@ -34,12 +48,14 @@
       background: var(--cream);
       color: var(--text);
       min-height: 100vh;
+      min-height: -webkit-fill-available;
     }
 
     /* ── Header ── */
     header {
       background: linear-gradient(135deg, var(--green-dark) 0%, var(--green-mid) 100%);
       padding: 24px 20px 20px;
+      padding-top: calc(24px + env(safe-area-inset-top));
       text-align: center;
       border-bottom: 4px solid var(--brown);
     }
@@ -57,11 +73,23 @@
     }
     .leaf { font-size: 1.6rem; margin: 0 6px; }
 
+    /* Small screens (most phones): smaller title + compact Settings so they don't collide */
+    @media (max-width: 480px) {
+      header h1 { font-size: 1.5rem; }
+      header { padding-left: 56px; padding-right: 56px; }
+      #settings-btn { padding: 9px 11px; font-size: 1.1rem; }
+      .settings-text { display: none; }   /* icon-only Settings on phones */
+      .leaf { font-size: 1.2rem; }
+    }
+
     /* ── Main layout ── */
     main {
       max-width: 760px;
       margin: 0 auto;
       padding: 28px 16px 60px;
+      padding-left: calc(16px + env(safe-area-inset-left));
+      padding-right: calc(16px + env(safe-area-inset-right));
+      padding-bottom: calc(60px + env(safe-area-inset-bottom));
     }
 
     /* ── API key section ── */
@@ -86,9 +114,9 @@
       min-width: 200px;
       border: 1px solid var(--tan-dark);
       border-radius: 6px;
-      padding: 7px 10px;
+      padding: 9px 10px;
       font-family: monospace;
-      font-size: 0.85rem;
+      font-size: 16px;          /* 16px prevents iOS focus-zoom */
       background: var(--cream);
       color: var(--text);
     }
@@ -679,6 +707,38 @@
     .map-popup-name { font-weight: bold; color: var(--green-dark); }
     .map-popup-sci { font-style: italic; font-size: 0.85em; color: var(--text-muted); }
 
+    /* ── Category picker ── */
+    #category-picker { margin-bottom: 18px; }
+    .category-picker-label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      text-align: center;
+    }
+    .category-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+    }
+    .cat-chip {
+      background: white;
+      border: 1.5px solid var(--tan-dark);
+      color: var(--text);
+      border-radius: 20px;
+      padding: 7px 15px;
+      font-size: 0.9rem;
+      font-family: Georgia, serif;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .cat-chip:hover { border-color: var(--green-light); }
+    .cat-chip.selected {
+      background: var(--green-mid);
+      border-color: var(--green-mid);
+      color: white;
+    }
+
     /* ── Pronunciation ── */
     .pronunciation-row {
       display: flex;
@@ -1061,16 +1121,17 @@
     /* ── Settings button in header ── */
     #settings-btn {
       position: absolute;
-      top: 16px;
-      right: 16px;
+      top: calc(14px + env(safe-area-inset-top));
+      right: calc(14px + env(safe-area-inset-right));
       background: rgba(255,255,255,0.15);
       border: 1px solid rgba(255,255,255,0.3);
       color: var(--tan);
       border-radius: 8px;
-      padding: 7px 12px;
+      padding: 9px 14px;
       font-size: 1rem;
       cursor: pointer;
       transition: background 0.15s;
+      min-height: 40px;
     }
     #settings-btn:hover { background: rgba(255,255,255,0.25); }
     header { position: relative; }
@@ -1110,6 +1171,8 @@
       color: var(--tan);
     }
     .drawer-header h2 { font-size: 1.1rem; }
+    /* Full-height settings drawer clears the notch */
+    #settings-drawer .drawer-header { padding-top: calc(18px + env(safe-area-inset-top)); }
     #settings-close {
       background: none;
       border: none;
@@ -1211,7 +1274,7 @@
 <header>
   <h1><span class="leaf">🌿</span> Species Identifier <span class="leaf">🦎</span></h1>
   <p>Photograph an animal, plant, or rock to learn its name, habitat &amp; habits</p>
-  <button id="settings-btn" title="Settings">⚙️ Settings</button>
+  <button id="settings-btn" title="Settings">⚙️<span class="settings-text"> Settings</span></button>
 </header>
 
 <!-- Settings Drawer -->
@@ -1280,6 +1343,20 @@
     <input id="api-key-input" type="password" placeholder="Paste your Gemini API key" autocomplete="off" />
     <button id="save-key-btn">Save</button>
     <div id="key-status"></div>
+  </div>
+
+  <!-- Category picker -->
+  <div id="category-picker">
+    <div class="category-picker-label">What are you scanning?</div>
+    <div class="category-chips" id="category-chips">
+      <button class="cat-chip selected" data-cat="Auto">✨ Auto</button>
+      <button class="cat-chip" data-cat="Plant">🌿 Plant</button>
+      <button class="cat-chip" data-cat="Animal">🦊 Animal</button>
+      <button class="cat-chip" data-cat="Bird">🐦 Bird</button>
+      <button class="cat-chip" data-cat="Insect">🦋 Insect</button>
+      <button class="cat-chip" data-cat="Fungus">🍄 Fungus</button>
+      <button class="cat-chip" data-cat="Rock">🪨 Rock</button>
+    </div>
   </div>
 
   <!-- Drop zone -->
@@ -1587,6 +1664,28 @@
   let mapInstance = null;     // Leaflet map
   let cropIndex = null;       // which image is being cropped
   const MAX_IMAGES = 5;
+  let selectedCategory = 'Auto';  // category hint from the picker
+
+  // Category picker wiring
+  document.getElementById('category-chips').addEventListener('click', e => {
+    const chip = e.target.closest('.cat-chip');
+    if (!chip) return;
+    document.querySelectorAll('.cat-chip').forEach(c => c.classList.remove('selected'));
+    chip.classList.add('selected');
+    selectedCategory = chip.dataset.cat;
+  });
+
+  // Build a prompt hint from the chosen category (empty when Auto)
+  function categoryHint() {
+    if (!selectedCategory || selectedCategory === 'Auto') return '';
+    const map = {
+      Plant: 'a plant', Animal: 'an animal', Bird: 'a bird',
+      Insect: 'an insect or other arthropod', Fungus: 'a fungus or mushroom',
+      Rock: 'a rock, mineral, gemstone, or fossil'
+    };
+    const phrase = map[selectedCategory] || selectedCategory;
+    return `\nThe person scanning indicates this is ${phrase}. Give that strong consideration when identifying. However, if the image clearly shows something different, identify what you actually see and mention the discrepancy in notes.\n`;
+  }
 
   // ── Elements ──
   const keyInput    = document.getElementById('api-key-input');
@@ -2004,7 +2103,7 @@
     resultCard.style.display = 'none';
     errorBox.style.display = 'none';
 
-    const prompt = IMAGE_INTRO + SCHEMA_PROMPT;
+    const prompt = IMAGE_INTRO + categoryHint() + SCHEMA_PROMPT;
 
     try {
       await runIdentification(prompt, images.map(img => ({ inline_data: { mime_type: img.mime, data: img.base64 } })), images[0] ? images[0].dataUrl : '');

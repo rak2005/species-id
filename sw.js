@@ -2,7 +2,7 @@
 // Caches the app shell so it installs to the home screen and opens offline.
 // Network requests to the Gemini API and map tiles always go to the network.
 
-const CACHE = 'species-id-v1';
+const CACHE = 'species-id-v3';
 const SHELL = [
   './',
   './index.html',
@@ -36,6 +36,21 @@ self.addEventListener('fetch', event => {
 
   // Never cache the Gemini API — always hit the network.
   if (url.hostname.includes('generativelanguage.googleapis.com')) return;
+
+  // The app page (HTML) — network-first so updates appear immediately when online,
+  // falling back to the cached copy when offline.
+  const isPage = req.mode === 'navigate' ||
+                 (url.origin === location.origin && (url.pathname === '/' || url.pathname.endsWith('/index.html')));
+  if (isPage) {
+    event.respondWith(
+      fetch(req).then(res => {
+        const copy = res.clone();
+        caches.open(CACHE).then(c => c.put('./index.html', copy));
+        return res;
+      }).catch(() => caches.match('./index.html') || caches.match(req))
+    );
+    return;
+  }
 
   // Map tiles: network-first, fall back to cache if offline.
   if (url.hostname.includes('tile.openstreetmap.org')) {

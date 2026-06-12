@@ -720,7 +720,19 @@
       flex-wrap: wrap;
       gap: 8px;
       justify-content: center;
+      align-items: center;
     }
+    .cat-group-label {
+      flex-basis: 100%;        /* forces the next chips onto a new line */
+      width: 100%;
+      text-align: center;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+    .cat-group-label:first-of-type { margin-top: 2px; }
     .cat-chip {
       background: white;
       border: 1.5px solid var(--tan-dark);
@@ -1350,10 +1362,20 @@
     <div class="category-picker-label">What are you scanning?</div>
     <div class="category-chips" id="category-chips">
       <button class="cat-chip selected" data-cat="Auto">✨ Auto</button>
-      <button class="cat-chip" data-cat="Plant">🌿 Plant</button>
-      <button class="cat-chip" data-cat="Animal">🦊 Animal</button>
+      <span class="cat-group-label">Animals</span>
+      <button class="cat-chip" data-cat="Mammal">🦊 Mammal</button>
       <button class="cat-chip" data-cat="Bird">🐦 Bird</button>
-      <button class="cat-chip" data-cat="Insect">🦋 Insect</button>
+      <button class="cat-chip" data-cat="Reptile">🦎 Reptile</button>
+      <button class="cat-chip" data-cat="Amphibian">🐸 Amphibian</button>
+      <button class="cat-chip" data-cat="Fish">🐟 Fish</button>
+      <button class="cat-chip" data-cat="Insect">🦋 Insect / Bug</button>
+      <span class="cat-group-label">Plants</span>
+      <button class="cat-chip" data-cat="Flower">🌸 Flower</button>
+      <button class="cat-chip" data-cat="Tree">🌳 Tree</button>
+      <button class="cat-chip" data-cat="Fern">🌿 Fern</button>
+      <button class="cat-chip" data-cat="Grass">🌾 Grass</button>
+      <button class="cat-chip" data-cat="Succulent">🌵 Succulent</button>
+      <span class="cat-group-label">Other</span>
       <button class="cat-chip" data-cat="Fungus">🍄 Fungus</button>
       <button class="cat-chip" data-cat="Rock">🪨 Rock</button>
     </div>
@@ -1679,9 +1701,16 @@
   function categoryHint() {
     if (!selectedCategory || selectedCategory === 'Auto') return '';
     const map = {
-      Plant: 'a plant', Animal: 'an animal', Bird: 'a bird',
-      Insect: 'an insect or other arthropod', Fungus: 'a fungus or mushroom',
-      Rock: 'a rock, mineral, gemstone, or fossil'
+      // Animals
+      Mammal: 'a mammal', Bird: 'a bird', Reptile: 'a reptile',
+      Amphibian: 'an amphibian (frog, toad, salamander, newt)', Fish: 'a fish',
+      Insect: 'an insect, spider, or other arthropod / bug',
+      // Plants
+      Flower: 'a flowering plant or wildflower', Tree: 'a tree',
+      Fern: 'a fern', Grass: 'a grass, sedge, or rush',
+      Succulent: 'a succulent or cactus',
+      // Other
+      Fungus: 'a fungus or mushroom', Rock: 'a rock, mineral, gemstone, or fossil'
     };
     const phrase = map[selectedCategory] || selectedCategory;
     return `\nThe person scanning indicates this is ${phrase}. Give that strong consideration when identifying. However, if the image clearly shows something different, identify what you actually see and mention the discrepancy in notes.\n`;
@@ -2238,6 +2267,16 @@ If you cannot identify the organism or no organism is visible, set common_name t
     );
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
+      // Friendly messages for the most common failures
+      if (response.status === 400 && /API key not valid/i.test(err?.error?.message || '')) {
+        throw new Error('Your API key isn’t valid. Double-check it in the key box above (or paste a new one from aistudio.google.com/apikey).');
+      }
+      if (response.status === 401 || response.status === 403) {
+        throw new Error('Your API key was rejected (invalid or expired). Get a fresh key at aistudio.google.com/apikey and save it again.');
+      }
+      if (response.status === 429) {
+        throw new Error('Rate limit reached — you’ve made too many requests. Wait a minute and try again, or switch to “Flash Lite” in Settings for higher free limits.');
+      }
       throw new Error(err?.error?.message || `API error ${response.status}`);
     }
     const data = await response.json();
@@ -2644,22 +2683,62 @@ If you cannot identify the organism or no organism is visible, set common_name t
     try { return JSON.parse(localStorage.getItem('species_history') || '[]'); }
     catch { return []; }
   }
+
+  // Quota-safe save: if storage is full, drop the oldest entries until it fits
+  // (instead of silently failing and losing all new identifications).
   function saveHistory(arr) {
-    localStorage.setItem('species_history', JSON.stringify(arr));
+    let list = arr.slice();
+    while (true) {
+      try {
+        localStorage.setItem('species_history', JSON.stringify(list));
+        return true;
+      } catch (e) {
+        // QuotaExceededError (name varies by browser) — trim the oldest entry and retry
+        if (list.length > 1) { list.pop(); continue; }
+        // Even a single entry won't fit (huge image) — give up but don't crash
+        try { localStorage.setItem('species_history', '[]'); } catch {}
+        return false;
+      }
+    }
   }
 
-  function saveToHistory(data, dataUrl, location) {
+  // Shrink a photo to a small JPEG thumbnail so history doesn't blow past
+  // the browser's ~5 MB localStorage limit (the main cause of lost history on phones).
+  function makeThumbnail(dataUrl, maxDim = 360, quality = 0.6) {
+    return new Promise(resolve => {
+      if (!dataUrl || dataUrl.indexOf('data:image') !== 0) { resolve(dataUrl || ''); return; }
+      const img = new Image();
+      img.onload = () => {
+        let { width: w, height: h } = img;
+        if (w > maxDim || h > maxDim) {
+          if (w >= h) { h = Math.round(h * maxDim / w); w = maxDim; }
+          else { w = Math.round(w * maxDim / h); h = maxDim; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        try { resolve(canvas.toDataURL('image/jpeg', quality)); }
+        catch { resolve(dataUrl); }
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    });
+  }
+
+  async function saveToHistory(data, dataUrl, location) {
+    const thumb = await makeThumbnail(dataUrl);
     const history = loadHistory();
     history.unshift({
       id: Date.now(),
       timestamp: new Date().toISOString(),
       data,
-      thumb: dataUrl,
+      thumb,
       location: location || null
     });
     // Respect history limit setting (0 = unlimited, capped at 200 for storage safety)
     const limit = loadSettings().limit || 200;
-    saveHistory(history.slice(0, limit));
+    const ok = saveHistory(history.slice(0, limit));
+    if (!ok) showError('Heads up: your saved history is full, so the oldest entries were removed to keep this one. Clear some history if you want to keep more.');
     renderHistory();
   }
 

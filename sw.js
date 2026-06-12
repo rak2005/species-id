@@ -2,7 +2,7 @@
 // Caches the app shell so it installs to the home screen and opens offline.
 // Network requests to the Gemini API and map tiles always go to the network.
 
-const CACHE = 'species-id-v3';
+const CACHE = 'species-id-v6';
 const SHELL = [
   './',
   './index.html',
